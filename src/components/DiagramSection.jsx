@@ -9,10 +9,12 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
+  MarkerType,
+  Handle,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-// Custom node component for better visualization
+// Custom node component from existing DiagramSection
 const CustomNode = ({ data, selected }) => {
   return (
     <div
@@ -26,6 +28,19 @@ const CustomNode = ({ data, selected }) => {
         width: data.width || "200px",
       }}
     >
+      {/* Adding handles from DashboardPage */}
+      <Handle
+        type="source"
+        position="top"
+        id="top"
+        style={{ background: '#555', width: 10, height: 10 }}
+      />
+      <Handle
+        type="source"
+        position="right"
+        id="right"
+        style={{ background: '#555', width: 10, height: 10 }}
+      />
       <div className="font-bold text-sm mb-1">{data.label.split('\n')[0]}</div>
       <div className="text-xs opacity-80">{data.label.split('\n').slice(1).join('\n')}</div>
       {data.techStack && (
@@ -43,13 +58,69 @@ const CustomNode = ({ data, selected }) => {
           </div>
         </div>
       )}
+      <Handle
+        type="target"
+        position="bottom"
+        id="bottom"
+        style={{ background: '#555', width: 10, height: 10 }}
+      />
+      <Handle
+        type="target"
+        position="left"
+        id="left"
+        style={{ background: '#555', width: 10, height: 10 }}
+      />
     </div>
   );
 };
 
-const nodeTypes = {
-  custom: CustomNode,
+// Custom Edge Component from DashboardPage
+const CustomEdge = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  markerEnd,
+  label,
+}) => {
+  const edgePath = `M${sourceX},${sourceY} C${sourceX + (targetX - sourceX) / 2},${sourceY} ${sourceX + (targetX - sourceX) / 2},${targetY} ${targetX},${targetY}`;
+  const labelX = sourceX + (targetX - sourceX) / 2;
+  const labelY = sourceY + (targetY - sourceY) / 2;
+
+  return (
+    <>
+      <path
+        id={id}
+        style={style}
+        className="react-flow__edge-path"
+        d={edgePath}
+        markerEnd={markerEnd}
+      />
+      {label && (
+        <foreignObject
+          width={100}
+          height={40}
+          x={labelX - 50}
+          y={labelY - 20}
+          requiredExtensions="http://www.w3.org/1999/xhtml"
+        >
+          <div className="edge-label-foreignobject">
+            <div className="edge-label bg-white bg-opacity-70 px-2 py-1 rounded text-xs text-center">
+              {label}
+            </div>
+          </div>
+        </foreignObject>
+      )}
+    </>
+  );
 };
+
+const nodeTypes = { custom: CustomNode };
+const edgeTypes = { custom: CustomEdge };
 
 export default function DiagramSection({ darkMode, setDiagram }) {
   const [files, setFiles] = useState([]);
@@ -66,8 +137,12 @@ export default function DiagramSection({ darkMode, setDiagram }) {
   const [accessToken, setAccessToken] = useState("");
   const [diagramTitle, setDiagramTitle] = useState("");
   const [diagramDescription, setDiagramDescription] = useState("");
+  // Additional states from DashboardPage
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedEdge, setSelectedEdge] = useState(null);
 
-  // Get token from localStorage when component mounts
+  // Existing useEffect for token and diagram types
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
@@ -75,7 +150,6 @@ export default function DiagramSection({ darkMode, setDiagram }) {
     }
   }, []);
 
-  // Fetch diagram types on component mount or when accessToken changes
   useEffect(() => {
     const fetchDiagramTypes = async () => {
       if (!accessToken) return;
@@ -115,6 +189,28 @@ export default function DiagramSection({ darkMode, setDiagram }) {
     
     fetchDiagramTypes();
   }, [accessToken]);
+
+  // Adding default diagram from DashboardPage
+  useEffect(() => {
+    if (!diagramTitle && nodes.length === 0 && edges.length === 0) {
+      const defaultDiagram = {
+        diagram_type: "architecture",
+        data: {
+          elements: [
+            { id: "web_browser", type: "external_system", name: "Web Browser", description: "User interface for interacting with the application", tech_stack: ["HTML", "JavaScript"], position: { x: 50, y: 100 } },
+            { id: "flask_app", type: "component", name: "Flask Application", description: "Main application handling web requests", tech_stack: ["Python", "Flask"], position: { x: 350, y: 200 } },
+            { id: "file_system", type: "data_store", name: "File System", description: "Storage for uploaded videos", tech_stack: ["OS"], position: { x: 650, y: 100 } },
+            { id: "conn_web_flask", type: "connection", source: "web_browser", target: "flask_app", description: "HTTP requests" },
+            { id: "conn_flask_file", type: "connection", source: "flask_app", target: "file_system", description: "File I/O" },
+          ],
+          title: "Deepfake Detection System Architecture",
+          description: "System architecture diagram showing components and connections",
+        },
+      };
+      setDiagram(defaultDiagram);
+      transformDataToFlowElements(defaultDiagram);
+    }
+  }, [setDiagram, diagramTitle, nodes.length, edges.length]);
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -186,7 +282,6 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         let background = darkMode ? "#4B5EAA" : "#E6F3FF";
         let textColor = darkMode ? "#FFFFFF" : "#000000";
 
-        // Style nodes differently based on their type
         switch(el.type) {
           case "component":
             background = darkMode ? "#2E7D32" : "#C8E6C9";
@@ -220,31 +315,47 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         };
       });
 
+    const nodePositions = {};
+    newNodes.forEach(node => nodePositions[node.id] = node.position);
+
+    const getHandles = (source, target) => {
+      const sourcePos = nodePositions[source];
+      const targetPos = nodePositions[target];
+      if (!sourcePos || !targetPos) return { sourceHandle: "right", targetHandle: "left" };
+      const dx = targetPos.x - sourcePos.x;
+      const dy = targetPos.y - sourcePos.y;
+      return Math.abs(dx) > Math.abs(dy)
+        ? { sourceHandle: dx > 0 ? "right" : "left", targetHandle: dx > 0 ? "left" : "right" }
+        : { sourceHandle: dy > 0 ? "bottom" : "top", targetHandle: dy > 0 ? "top" : "bottom" };
+    };
+
     const newEdges = result.data.elements
       .filter((el) => el.type === "connection")
-      .map((el) => ({
-        id: el.id,
-        source: el.source || "",
-        target: el.target || "",
-        type: "smoothstep",
-        animated: true,
-        label: el.description || "",
-        style: {
-          stroke: darkMode ? "#FFFFFF" : "#000000",
-          strokeWidth: 2,
-          strokeDasharray: el.style?.lineStyle === "dash" ? "5,5" : "none",
-        },
-        labelStyle: {
-          fill: darkMode ? "#FFFFFF" : "#000000",
-          fontSize: "10px",
-        },
-        markerEnd: {
-          type: "arrowclosed",
-          color: darkMode ? "#FFFFFF" : "#000000",
-        },
-      }));
+      .map((el) => {
+        const { sourceHandle, targetHandle } = getHandles(el.source, el.target);
+        return {
+          id: el.id || `edge_${el.source}_${el.target}`,
+          source: el.source || "",
+          target: el.target || "",
+          sourceHandle,
+          targetHandle,
+          type: "custom",
+          animated: true,
+          label: el.description || "",
+          style: {
+            stroke: darkMode ? "#FFFFFF" : "#000000",
+            strokeWidth: 2,
+            strokeDasharray: el.style?.lineStyle === "dash" ? "5,5" : "none",
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: darkMode ? "#FFFFFF" : "#000000",
+          },
+        };
+      });
 
-    return { nodes: newNodes, edges: newEdges };
+    setNodes(newNodes);
+    setEdges(newEdges);
   };
 
   const handleGenerate = async () => {
@@ -266,20 +377,17 @@ export default function DiagramSection({ darkMode, setDiagram }) {
     try {
       setIsUploading(true);
   
-      // Prepare the files array similar to the curl request
       const filesPayload = extractedFiles.map(file => ({
         content: file.content,
         filepath: file.path
       }));
   
-      // Create the request body
       const requestBody = {
         files: filesPayload,
         diagram_type: diagramType,
         description: "Generate diagram based on the provided files"
       };
   
-      // Send the request with authorization header
       const response = await fetch("https://devexy-backend.azurewebsites.net/diagrams/generate", {
         method: "POST",
         headers: {
@@ -303,14 +411,9 @@ export default function DiagramSection({ darkMode, setDiagram }) {
       const result = await response.json();
       setDiagram(result);
   
-      // Transform the API response into ReactFlow elements
-      const { nodes: flowNodes, edges: flowEdges } = transformDataToFlowElements(result);
-      
-      setNodes(flowNodes);
-      setEdges(flowEdges);
+      transformDataToFlowElements(result);
       setError(null);
   
-      // Fit view after a small delay to allow nodes to render
       setTimeout(() => {
         if (reactFlowInstance) {
           reactFlowInstance.fitView({ padding: 0.5 });
@@ -323,13 +426,90 @@ export default function DiagramSection({ darkMode, setDiagram }) {
       setIsUploading(false);
     }
   };
+
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge({ ...params, type: "smoothstep", animated: true }, eds)),
-    [setEdges]
+    (params) => {
+      const newLabel = prompt("Enter connection label:", "");
+      if (newLabel !== null) {
+        const newEdge = {
+          ...params,
+          type: "custom",
+          animated: true,
+          label: newLabel,
+          id: `edge_${params.source}_${params.target}_${Math.random().toString(36).substr(2, 9)}`,
+          markerEnd: { type: MarkerType.ArrowClosed, color: darkMode ? "#FFFFFF" : "#000000" },
+          style: { stroke: darkMode ? "#FFFFFF" : "#000000", strokeWidth: 2 },
+        };
+        setEdges((eds) => addEdge(newEdge, eds));
+      }
+    },
+    [darkMode, setEdges]
   );
 
   const onInit = (rfi) => {
     setReactFlowInstance(rfi);
+  };
+
+  // Additional functionality from DashboardPage
+  const onEdgeClick = useCallback((event, edge) => {
+    event.stopPropagation();
+    setSelectedEdge(edge);
+    const newLabel = prompt("Edit connection label:", edge.label);
+    if (newLabel !== null) {
+      setEdges((eds) => eds.map((e) => (e.id === edge.id ? { ...e, label: newLabel } : e)));
+    }
+  }, [setEdges]);
+
+  const onEdgeDelete = useCallback((edgeId) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+    setSelectedEdge(null);
+  }, [setEdges]);
+
+  const editElement = (elementId) => {
+    const element = nodes.find(n => n.id === elementId);
+    if (!element) return;
+    const newName = prompt("Edit component name:", element.data.label.split('\n')[0]);
+    if (newName) {
+      setNodes(nds => nds.map(node => 
+        node.id === elementId 
+          ? { ...node, data: { ...node.data, label: `${newName}\n${node.data.label.split('\n').slice(1).join('\n')}` } }
+          : node
+      ));
+    }
+  };
+
+  const addElement = () => {
+    const newElement = {
+      id: `component_${Math.random().toString(36).substr(2, 9)}`,
+      type: "custom",
+      position: { x: 200, y: 200 },
+      data: {
+        label: "New Component\nDescription",
+        techStack: ["Technology"],
+        background: darkMode ? "#2E7D32" : "#C8E6C9",
+        textColor: darkMode ? "#FFFFFF" : "#000000",
+        width: "220px",
+      },
+    };
+    setNodes(nds => [...nds, newElement]);
+  };
+
+  const onNodeDragStart = (event, node) => {
+    setSelectedElement(node);
+    setIsDragging(true);
+  };
+
+  const onNodeDrag = (event, node) => {
+    if (isDragging && selectedElement) {
+      setNodes(nds => nds.map(nd => 
+        nd.id === node.id ? { ...nd, position: { x: node.position.x, y: node.position.y } } : nd
+      ));
+    }
+  };
+
+  const onNodeDragStop = () => {
+    setIsDragging(false);
+    setSelectedElement(null);
   };
 
   return (
@@ -496,15 +676,30 @@ export default function DiagramSection({ darkMode, setDiagram }) {
 
       {(nodes.length > 0 || edges.length > 0) && (
         <div className={`p-6 rounded-xl shadow-lg mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-          <div className="mb-4">
-            <h3 className={`text-xl font-semibold ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
-              {diagramTitle}
-            </h3>
-            {diagramDescription && (
-              <p className={`mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                {diagramDescription}
-              </p>
-            )}
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className={`text-xl font-semibold ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+                {diagramTitle}
+              </h3>
+              {diagramDescription && (
+                <p className={`mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                  {diagramDescription}
+                </p>
+              )}
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={addElement}
+                className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-lg text-sm font-medium transition-all duration-300"
+              >
+                Add Component
+              </button>
+              <button
+                className="bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded-lg text-sm font-medium transition-all duration-300"
+              >
+                Save Diagram
+              </button>
+            </div>
           </div>
           
           <div className="h-[600px] w-full rounded-xl overflow-hidden border">
@@ -516,13 +711,22 @@ export default function DiagramSection({ darkMode, setDiagram }) {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 onInit={onInit}
+                onEdgeClick={onEdgeClick}
+                onEdgeDoubleClick={(e, edge) => onEdgeDelete(edge.id)}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                onNodeClick={(e, node) => editElement(node.id)}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDrag={onNodeDrag}
+                onNodeDragStop={onNodeDragStop}
                 fitView
                 nodesDraggable
-                nodeTypes={nodeTypes}
                 style={{ background: darkMode ? "#1F2937" : "#F9FAFB" }}
                 defaultEdgeOptions={{
-                  type: 'smoothstep',
+                  type: 'custom',
                   animated: true,
+                  markerEnd: { type: MarkerType.ArrowClosed, color: darkMode ? "#FFFFFF" : "#000000" },
+                  style: { stroke: darkMode ? "#FFFFFF" : "#000000", strokeWidth: 2 },
                 }}
               >
                 <Background 
