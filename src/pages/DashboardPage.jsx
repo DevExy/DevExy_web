@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -8,22 +8,77 @@ export default function DashboardPage() {
   const [username, setUsername] = useState("");
   const navigate = useNavigate();
 
+  // Diagram-specific states
+  const [files, setFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [diagram, setDiagram] = useState(null);
+  const [error, setError] = useState(null);
+  const [extractedFiles, setExtractedFiles] = useState([]);
+  const fileInputRef = useRef(null);
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+  const diagramContainerRef = useRef(null);
+
   useEffect(() => {
-    // Check if user is authenticated
     const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
     if (!isAuthenticated) {
       navigate("/login");
       return;
     }
 
-    // Get user data
     const userData = JSON.parse(localStorage.getItem("user") || "{}");
     setUsername(userData.username || "User");
 
-    // Set theme preference
     const prefersDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setDarkMode(prefersDarkMode);
-  }, [navigate]);
+
+    // Initial diagram setup
+    if (!diagram && activeNav === "diagram") {
+      setDiagram({
+        diagram_type: "architecture",
+        data: {
+          elements: [
+            {
+              id: "frontend_component",
+              type: "component",
+              name: "Frontend",
+              description: "React application",
+              tech_stack: ["React", "Framer Motion"],
+              position: { x: 100, y: 100 },
+              style: {}
+            },
+            {
+              id: "backend_component",
+              type: "component",
+              name: "Backend",
+              description: "API service",
+              tech_stack: ["Node.js", "Express"],
+              position: { x: 300, y: 100 },
+              style: {}
+            },
+            {
+              id: "database_component",
+              type: "component",
+              name: "Database",
+              description: "Data storage",
+              tech_stack: ["MongoDB"],
+              position: { x: 200, y: 250 },
+              style: {}
+            }
+          ],
+          connections: [
+            { source: "frontend_component", target: "backend_component", label: "REST API" },
+            { source: "backend_component", target: "database_component", label: "Queries" }
+          ],
+          layout: "hierarchical",
+          metadata: { version: "1.0" },
+          title: "Architecture Diagram",
+          description: "Architecture of the application"
+        }
+      });
+    }
+  }, [navigate, activeNav]);
 
   const toggleTheme = () => setDarkMode(!darkMode);
 
@@ -35,19 +90,145 @@ export default function DashboardPage() {
     navigate("/login");
   };
 
-  // Components for each nav section
+  // Diagram functions
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setFiles(selectedFiles);
+    setError(null);
+    
+    if (selectedFiles.length === 1 && selectedFiles[0].type === "application/zip") {
+      extractZipFile(selectedFiles[0]);
+    }
+  };
+
+  const extractZipFile = async (zipFile) => {
+    try {
+      setIsUploading(true);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const mockExtractedFiles = [
+        { name: 'index.js', path: '/index.js', content: 'console.log("Hello world");' },
+        { name: 'api.js', path: '/api.js', content: 'export function fetchData() { return Promise.resolve(); }' },
+        { name: 'config.json', path: '/config.json', content: '{"version": "1.0.0"}' }
+      ];
+      setExtractedFiles(mockExtractedFiles);
+      setIsUploading(false);
+    } catch (err) {
+      console.error("Error extracting zip:", err);
+      setError("Failed to extract zip file. Please try again.");
+      setIsUploading(false);
+    }
+  };
+
+  const generateDiagram = async () => {
+    try {
+      setIsUploading(true);
+      const payload = {
+        files: extractedFiles.map(file => ({
+          content: file.content,
+          filepath: file.path
+        })),
+        diagram_type: "architecture",
+        description: "Generate diagram based on the provided files"
+      };
+      
+      const response = await fetch("https://devexy-backend.azurewebsites.net/diagrams/generate", {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+      
+      const result = await response.json();
+      setDiagram(result);
+      setIsUploading(false);
+    } catch (err) {
+      console.error("Error generating diagram:", err);
+      setError("Failed to generate diagram. Please try again.");
+      setIsUploading(false);
+    }
+  };
+
+  const handleDragStart = (element, e) => {
+    setSelectedElement(element);
+    setIsDragging(true);
+    if (diagramContainerRef.current) {
+      const containerRect = diagramContainerRef.current.getBoundingClientRect();
+      const offsetX = e.clientX - containerRect.left - element.position.x;
+      const offsetY = e.clientY - containerRect.top - element.position.y;
+      setDragPosition({ offsetX, offsetY });
+    }
+  };
+
+  const handleDragMove = (e) => {
+    if (isDragging && selectedElement && diagramContainerRef.current) {
+      const containerRect = diagramContainerRef.current.getBoundingClientRect();
+      const newX = e.clientX - containerRect.left - dragPosition.offsetX;
+      const newY = e.clientY - containerRect.top - dragPosition.offsetY;
+      
+      setDiagram(prevDiagram => {
+        const updatedElements = prevDiagram.data.elements.map(el => {
+          if (el.id === selectedElement.id) {
+            return { ...el, position: { x: newX, y: newY } };
+          }
+          return el;
+        });
+        return { ...prevDiagram, data: { ...prevDiagram.data, elements: updatedElements } };
+      });
+    }
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setSelectedElement(null);
+  };
+
+  const editElement = (element) => {
+    const name = prompt("Edit component name:", element.name);
+    if (name) {
+      setDiagram(prevDiagram => {
+        const updatedElements = prevDiagram.data.elements.map(el => {
+          if (el.id === element.id) {
+            return { ...el, name };
+          }
+          return el;
+        });
+        return { ...prevDiagram, data: { ...prevDiagram.data, elements: updatedElements } };
+      });
+    }
+  };
+
+  const addElement = () => {
+    if (!diagram) return;
+    const newElement = {
+      id: `component_${Math.random().toString(36).substr(2, 9)}`,
+      type: "component",
+      name: "New Component",
+      description: "Description for new component",
+      tech_stack: ["Technology"],
+      position: { x: 200, y: 200 },
+      style: {}
+    };
+    setDiagram(prevDiagram => ({
+      ...prevDiagram,
+      data: { ...prevDiagram.data, elements: [...prevDiagram.data.elements, newElement] }
+    }));
+  };
+
+  // Render functions
   const renderDashboard = () => (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-6">Dashboard Overview</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Dashboard cards */}
         {["Projects", "Tasks", "Analytics"].map((item) => (
           <motion.div
             key={item}
             whileHover={{ scale: 1.03 }}
-            className={`p-6 rounded-xl shadow-lg ${
-              darkMode ? "bg-gray-800" : "bg-white"
-            }`}
+            className={`p-6 rounded-xl shadow-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}
           >
             <h3 className="text-xl font-semibold mb-3">{item}</h3>
             <p className={`${darkMode ? "text-gray-300" : "text-gray-600"}`}>
@@ -61,21 +242,235 @@ export default function DashboardPage() {
 
   const renderDiagram = () => (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Diagrams</h2>
-      <div className={`p-6 rounded-xl shadow-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-        <div className="aspect-video bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
-          <p className="text-gray-600 font-medium">Diagram visualization will appear here</p>
+      <h2 className="text-2xl font-bold mb-6">Architecture Diagrams</h2>
+      
+      {/* File Upload Section */}
+      <div className={`p-6 rounded-xl shadow-lg mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+        <h3 className="text-xl font-semibold mb-3">Upload Files</h3>
+        <p className={`mb-4 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+          Upload a zip file containing your project files to generate an architecture diagram.
+        </p>
+        
+        <div className="flex flex-col space-y-4">
+          <div 
+            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer ${
+              darkMode ? "border-gray-600 hover:border-green-500" : "border-gray-300 hover:border-green-500"
+            }`}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden" 
+              accept=".zip"
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <p className={`text-lg ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+              Drag & drop your zip file here or <span className="text-green-500">browse</span>
+            </p>
+          </div>
+          
+          {files.length > 0 && (
+            <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
+              <h4 className="font-medium mb-2">Selected Files:</h4>
+              <ul className="space-y-1">
+                {files.map((file, index) => (
+                  <li key={index} className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>{file.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {extractedFiles.length > 0 && (
+            <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
+              <h4 className="font-medium mb-2">Extracted Files:</h4>
+              <div className="max-h-40 overflow-y-auto">
+                <ul className="space-y-1">
+                  {extractedFiles.map((file, index) => (
+                    <li key={index} className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>{file.path}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <button
+                onClick={generateDiagram}
+                disabled={isUploading}
+                className={`mt-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-2 px-4 rounded-lg transition-all duration-300 ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                {isUploading ? "Generating..." : "Generate Diagram"}
+              </button>
+            </div>
+          )}
+          
+          {error && (
+            <div className="p-4 bg-red-100 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
         </div>
       </div>
+      
+      {/* Diagram Display and Editor */}
+      {diagram && (
+        <div className={`p-6 rounded-xl shadow-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold">{diagram.data.title}</h3>
+            <div className="flex space-x-2">
+              <button
+                onClick={addElement}
+                className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-lg text-sm font-medium transition-all duration-300"
+              >
+                Add Component
+              </button>
+              <button
+                className="bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded-lg text-sm font-medium transition-all duration-300"
+              >
+                Save Diagram
+              </button>
+            </div>
+          </div>
+          
+          <p className={`mb-6 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+            {diagram.data.description}
+          </p>
+          
+          <div 
+            ref={diagramContainerRef}
+            className="relative w-full h-96 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg overflow-hidden border border-gray-200"
+            onMouseMove={handleDragMove}
+            onMouseUp={handleDragEnd}
+            onMouseLeave={handleDragEnd}
+          >
+            {diagram.data.elements.map((element) => (
+              <motion.div
+                key={element.id}
+                className={`absolute p-4 rounded-lg shadow-md cursor-move ${
+                  darkMode ? "bg-gray-700" : "bg-white"
+                } ${selectedElement?.id === element.id ? "ring-2 ring-green-500" : ""}`}
+                style={{
+                  left: element.position.x,
+                  top: element.position.y,
+                  width: 180,
+                  zIndex: selectedElement?.id === element.id ? 10 : 1
+                }}
+                onMouseDown={(e) => handleDragStart(element, e)}
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-medium text-sm">{element.name}</h4>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      editElement(element);
+                    }}
+                    className="text-gray-400 hover:text-blue-500"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                </div>
+                <p className={`text-xs ${darkMode ? "text-gray-300" : "text-gray-500"}`}>
+                  {element.description}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {element.tech_stack.map((tech, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                    >
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+            
+            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+              {diagram.data.connections?.map((connection, index) => {
+                const source = diagram.data.elements.find(el => el.id === connection.source);
+                const target = diagram.data.elements.find(el => el.id === connection.target);
+                
+                if (!source || !target) return null;
+                
+                const sourceX = source.position.x + 90;
+                const sourceY = source.position.y + 40;
+                const targetX = target.position.x + 90;
+                const targetY = target.position.y + 40;
+                const midX = (sourceX + targetX) / 2;
+                const midY = (sourceY + targetY) / 2;
+                
+                return (
+                  <g key={index}>
+                    <line
+                      x1={sourceX}
+                      y1={sourceY}
+                      x2={targetX}
+                      y2={targetY}
+                      stroke={darkMode ? "#4ADE80" : "#16A34A"}
+                      strokeWidth="2"
+                      strokeDasharray="4"
+                    />
+                    <circle cx={midX} cy={midY} r="8" fill="white" />
+                    <text
+                      x={midX}
+                      y={midY + 4}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontWeight="bold"
+                      fill="#374151"
+                    >
+                      →
+                    </text>
+                    <text
+                      x={midX}
+                      y={midY - 10}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill={darkMode ? "#E5E7EB" : "#374151"}
+                    >
+                      {connection.label}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+          
+          <div className="mt-4 flex flex-wrap gap-4">
+            <div className="flex items-center">
+              <div className="w-4 h-0 border border-dashed border-green-500 mr-2"></div>
+              <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Connection</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-white border border-gray-200 rounded mr-2"></div>
+              <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Component</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
   const renderAbout = () => (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">About Devexy</h2>
+      <h2 className="text-2xl font-bold mb-6">About DevExy</h2>
       <div className={`p-6 rounded-xl shadow-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <p className={`mb-4 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
-          Devexy is a powerful development platform designed to help developers streamline their workflow and increase productivity.
+          DevExy is a powerful development platform designed to help developers streamline their workflow and increase productivity.
         </p>
         <p className={`${darkMode ? "text-gray-300" : "text-gray-600"}`}>
           Our mission is to provide innovative tools that make development more efficient and enjoyable.
@@ -100,7 +495,6 @@ export default function DashboardPage() {
     </div>
   );
 
-  // Render content based on active nav
   const renderContent = () => {
     switch (activeNav) {
       case "dashboard": return renderDashboard();
@@ -113,7 +507,6 @@ export default function DashboardPage() {
 
   return (
     <div className={`w-full min-h-screen flex flex-col ${darkMode ? "bg-gray-900 text-white" : "bg-gradient-to-br from-gray-50 to-green-50 text-gray-800"} transition-colors duration-300`}>
-      {/* Background elements */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -126,12 +519,11 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Header */}
       <header className={`w-full ${darkMode ? "bg-gray-800" : "bg-white"} shadow-md z-10`}>
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center">
-            <img src="/logo.png" alt="Devexy Logo" className="h-8 w-auto" />
-            <span className={`ml-2 text-xl font-light ${darkMode ? "text-green-400" : "text-green-600"}`}>Devexy</span>
+            <img src="/logo.png" alt="DevExy Logo" className="h-6 w-auto" />
+            <span className={`ml-2 text-xl font-light ${darkMode ? "text-green-400" : "text-green-600"}`}>DevExy</span>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -147,11 +539,7 @@ export default function DashboardPage() {
             >
               {darkMode ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
-                    clipRule="evenodd"
-                  />
+                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
                 </svg>
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -172,9 +560,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Nav and Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Side Navigation */}
         <nav className={`w-64 border-r ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} shadow-lg z-10`}>
           <div className="py-6 px-4">
             <ul className="space-y-2">
@@ -221,7 +607,6 @@ export default function DashboardPage() {
           </div>
         </nav>
 
-        {/* Main Content */}
         <main className="flex-1 overflow-auto relative z-10">
           {renderContent()}
         </main>

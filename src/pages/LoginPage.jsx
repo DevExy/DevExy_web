@@ -63,7 +63,7 @@ export default function LoginPage() {
 
   const handlePopupClose = () => {
     setShowSuccess(false);
-    navigate("/home");
+    navigate("/dashboard");
   };
 
   return (
