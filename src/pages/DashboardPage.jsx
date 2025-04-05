@@ -1,6 +1,8 @@
+// DashboardPage.jsx
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import DiagramSection from "../components/DiagramSection"; // Import the new component
 
 export default function DashboardPage() {
   const [darkMode, setDarkMode] = useState(false);
@@ -8,13 +10,8 @@ export default function DashboardPage() {
   const [username, setUsername] = useState("");
   const navigate = useNavigate();
 
-  // Diagram-specific states
-  const [files, setFiles] = useState([]);
-  const [isUploading, setIsUploading] = useState(false);
+  // Diagram-specific states (moved some to DiagramSection)
   const [diagram, setDiagram] = useState(null);
-  const [error, setError] = useState(null);
-  const [extractedFiles, setExtractedFiles] = useState([]);
-  const fileInputRef = useRef(null);
   const [selectedElement, setSelectedElement] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
@@ -33,39 +30,14 @@ export default function DashboardPage() {
     const prefersDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setDarkMode(prefersDarkMode);
 
-    // Initial diagram setup
     if (!diagram && activeNav === "diagram") {
       setDiagram({
         diagram_type: "architecture",
         data: {
           elements: [
-            {
-              id: "frontend_component",
-              type: "component",
-              name: "Frontend",
-              description: "React application",
-              tech_stack: ["React", "Framer Motion"],
-              position: { x: 100, y: 100 },
-              style: {}
-            },
-            {
-              id: "backend_component",
-              type: "component",
-              name: "Backend",
-              description: "API service",
-              tech_stack: ["Node.js", "Express"],
-              position: { x: 300, y: 100 },
-              style: {}
-            },
-            {
-              id: "database_component",
-              type: "component",
-              name: "Database",
-              description: "Data storage",
-              tech_stack: ["MongoDB"],
-              position: { x: 200, y: 250 },
-              style: {}
-            }
+            { id: "frontend_component", type: "component", name: "Frontend", description: "React application", tech_stack: ["React", "Framer Motion"], position: { x: 100, y: 100 }, style: {} },
+            { id: "backend_component", type: "component", name: "Backend", description: "API service", tech_stack: ["Node.js", "Express"], position: { x: 300, y: 100 }, style: {} },
+            { id: "database_component", type: "component", name: "Database", description: "Data storage", tech_stack: ["MongoDB"], position: { x: 200, y: 250 }, style: {} }
           ],
           connections: [
             { source: "frontend_component", target: "backend_component", label: "REST API" },
@@ -88,69 +60,6 @@ export default function DashboardPage() {
     localStorage.removeItem("isAuthenticated");
     localStorage.removeItem("user");
     navigate("/login");
-  };
-
-  // Diagram functions
-  const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    setFiles(selectedFiles);
-    setError(null);
-    
-    if (selectedFiles.length === 1 && selectedFiles[0].type === "application/zip") {
-      extractZipFile(selectedFiles[0]);
-    }
-  };
-
-  const extractZipFile = async (zipFile) => {
-    try {
-      setIsUploading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const mockExtractedFiles = [
-        { name: 'index.js', path: '/index.js', content: 'console.log("Hello world");' },
-        { name: 'api.js', path: '/api.js', content: 'export function fetchData() { return Promise.resolve(); }' },
-        { name: 'config.json', path: '/config.json', content: '{"version": "1.0.0"}' }
-      ];
-      setExtractedFiles(mockExtractedFiles);
-      setIsUploading(false);
-    } catch (err) {
-      console.error("Error extracting zip:", err);
-      setError("Failed to extract zip file. Please try again.");
-      setIsUploading(false);
-    }
-  };
-
-  const generateDiagram = async () => {
-    try {
-      setIsUploading(true);
-      const payload = {
-        files: extractedFiles.map(file => ({
-          content: file.content,
-          filepath: file.path
-        })),
-        diagram_type: "architecture",
-        description: "Generate diagram based on the provided files"
-      };
-      
-      const response = await fetch("https://devexy-backend.azurewebsites.net/diagrams/generate", {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
-      
-      const result = await response.json();
-      setDiagram(result);
-      setIsUploading(false);
-    } catch (err) {
-      console.error("Error generating diagram:", err);
-      setError("Failed to generate diagram. Please try again.");
-      setIsUploading(false);
-    }
   };
 
   const handleDragStart = (element, e) => {
@@ -219,7 +128,6 @@ export default function DashboardPage() {
     }));
   };
 
-  // Render functions
   const renderDashboard = () => (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-6">Dashboard Overview</h2>
@@ -241,89 +149,8 @@ export default function DashboardPage() {
   );
 
   const renderDiagram = () => (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Architecture Diagrams</h2>
-      
-      {/* File Upload Section */}
-      <div className={`p-6 rounded-xl shadow-lg mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-        <h3 className="text-xl font-semibold mb-3">Upload Files</h3>
-        <p className={`mb-4 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
-          Upload a zip file containing your project files to generate an architecture diagram.
-        </p>
-        
-        <div className="flex flex-col space-y-4">
-          <div 
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer ${
-              darkMode ? "border-gray-600 hover:border-green-500" : "border-gray-300 hover:border-green-500"
-            }`}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input 
-              type="file" 
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden" 
-              accept=".zip"
-            />
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <p className={`text-lg ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
-              Drag & drop your zip file here or <span className="text-green-500">browse</span>
-            </p>
-          </div>
-          
-          {files.length > 0 && (
-            <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
-              <h4 className="font-medium mb-2">Selected Files:</h4>
-              <ul className="space-y-1">
-                {files.map((file, index) => (
-                  <li key={index} className="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>{file.name}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {extractedFiles.length > 0 && (
-            <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
-              <h4 className="font-medium mb-2">Extracted Files:</h4>
-              <div className="max-h-40 overflow-y-auto">
-                <ul className="space-y-1">
-                  {extractedFiles.map((file, index) => (
-                    <li key={index} className="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span>{file.path}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              <button
-                onClick={generateDiagram}
-                disabled={isUploading}
-                className={`mt-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-2 px-4 rounded-lg transition-all duration-300 ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {isUploading ? "Generating..." : "Generate Diagram"}
-              </button>
-            </div>
-          )}
-          
-          {error && (
-            <div className="p-4 bg-red-100 text-red-700 rounded-lg">
-              {error}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Diagram Display and Editor */}
+    <>
+      <DiagramSection darkMode={darkMode} setDiagram={setDiagram} />
       {diagram && (
         <div className={`p-6 rounded-xl shadow-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
           <div className="flex justify-between items-center mb-4">
@@ -388,10 +215,7 @@ export default function DashboardPage() {
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {element.tech_stack.map((tech, i) => (
-                    <span
-                      key={i}
-                      className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                    >
+                    <span key={i} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                       {tech}
                     </span>
                   ))}
@@ -403,16 +227,13 @@ export default function DashboardPage() {
               {diagram.data.connections?.map((connection, index) => {
                 const source = diagram.data.elements.find(el => el.id === connection.source);
                 const target = diagram.data.elements.find(el => el.id === connection.target);
-                
                 if (!source || !target) return null;
-                
                 const sourceX = source.position.x + 90;
                 const sourceY = source.position.y + 40;
                 const targetX = target.position.x + 90;
                 const targetY = target.position.y + 40;
                 const midX = (sourceX + targetX) / 2;
                 const midY = (sourceY + targetY) / 2;
-                
                 return (
                   <g key={index}>
                     <line
@@ -425,23 +246,8 @@ export default function DashboardPage() {
                       strokeDasharray="4"
                     />
                     <circle cx={midX} cy={midY} r="8" fill="white" />
-                    <text
-                      x={midX}
-                      y={midY + 4}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fontWeight="bold"
-                      fill="#374151"
-                    >
-                      →
-                    </text>
-                    <text
-                      x={midX}
-                      y={midY - 10}
-                      textAnchor="middle"
-                      fontSize="12"
-                      fill={darkMode ? "#E5E7EB" : "#374151"}
-                    >
+                    <text x={midX} y={midY + 4} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#374151">→</text>
+                    <text x={midX} y={midY - 10} textAnchor="middle" fontSize="12" fill={darkMode ? "#E5E7EB" : "#374151"}>
                       {connection.label}
                     </text>
                   </g>
@@ -462,7 +268,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 
   const renderAbout = () => (
@@ -530,13 +336,7 @@ export default function DashboardPage() {
             <div className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
               Welcome, <span className="font-medium">{username}</span>
             </div>
-            
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={toggleTheme}
-              className={`p-2 rounded-full ${darkMode ? "bg-gray-700 text-yellow-300" : "bg-gray-100 text-gray-700"}`}
-            >
+            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={toggleTheme} className={`p-2 rounded-full ${darkMode ? "bg-gray-700 text-yellow-300" : "bg-gray-100 text-gray-700"}`}>
               {darkMode ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
@@ -547,13 +347,7 @@ export default function DashboardPage() {
                 </svg>
               )}
             </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleLogout}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
-            >
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleLogout} className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300">
               Sign Out
             </motion.button>
           </div>
@@ -565,27 +359,10 @@ export default function DashboardPage() {
           <div className="py-6 px-4">
             <ul className="space-y-2">
               {[
-                { id: "dashboard", label: "Dashboard", icon: (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-                  </svg>
-                )},
-                { id: "diagram", label: "Diagram", icon: (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd" />
-                  </svg>
-                )},
-                { id: "about", label: "About", icon: (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                )},
-                { id: "contact", label: "Contact", icon: (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                  </svg>
-                )}
+                { id: "dashboard", label: "Dashboard", icon: (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>) },
+                { id: "diagram", label: "Diagram", icon: (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd" /></svg>) },
+                { id: "about", label: "About", icon: (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>) },
+                { id: "contact", label: "Contact", icon: (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>) }
               ].map((item) => (
                 <li key={item.id}>
                   <motion.button
