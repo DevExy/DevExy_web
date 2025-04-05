@@ -44,7 +44,8 @@ export default function LoginPage() {
       });
 
       const data = await response.json();
-
+     
+      console.log("Login response:", data);
       if (response.ok) {
         localStorage.setItem("access_token", data.access_token);
         localStorage.setItem("token_type", data.token_type);
