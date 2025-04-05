@@ -205,7 +205,7 @@ const LandingPage = () => {
                 />
                 <motion.div className="relative">
                   <motion.span 
-                    className="text-xl font-bold text-green-400 z-10 relative"
+                    className="text-xl font-bold text-green-300 z-10 relative"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
@@ -924,7 +924,7 @@ const LandingPage = () => {
                 whileHover={{ rotate: 360, scale: 1.2 }}
                 transition={{ duration: 0.5 }}
               />
-              <span className="ml-2 text-xl font-bold text-green-400">DevExy</span>
+              <span className="ml-2 text-xl font-bold text-green-300">DevExy</span>
             </div>
             <div className="flex space-x-6">
               {['Github', 'Twitter', 'Discord', 'LinkedIn'].map((social) => (
