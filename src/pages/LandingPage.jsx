@@ -487,88 +487,89 @@ const LandingPage = () => {
               Everything you need to test and manage your project requirements efficiently.
             </p>
           </motion.div>
-
           <motion.div 
-            className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3"
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.1 }}
+  className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3"
+  variants={staggerContainer}
+  initial="hidden"
+  whileInView="visible"
+  viewport={{ once: true, amount: 0.1 }}
+>
+  {[
+    { 
+      icon: <Zap className="h-5 w-5 text-white" />, 
+      title: "Blazing Fast Testing", 
+      description: "Run tests at lightning speed with optimized workflows."
+    },
+    { 
+      icon: <Code className="h-5 w-5 text-white" />, 
+      title: "Code-Centric", 
+      description: "Built by developers, for developers—manage code with precision."
+    },
+    { 
+      icon: <Terminal className="h-5 w-5 text-white" />, 
+      title: "CLI Integration", 
+      description: "Seamless command-line tools for ultimate control."
+    }
+  ].map((feature, index) => (
+    <motion.div 
+      key={index} 
+      className="pt-8" // Increased from pt-6 to pt-8
+      variants={fadeIn}
+    >
+      <motion.div 
+        className="flow-root bg-gray-800 rounded-lg px-8 py-10 shadow-lg border border-gray-700 h-full relative overflow-hidden group" // Increased px-6 pb-8 to px-8 py-10
+        whileHover={{ 
+          y: -10, 
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.8)",
+          borderColor: "rgba(74, 222, 128, 0.5)" 
+        }}
+        transition={{ duration: 0.3 }}
+      >
+        {/* Animated gradient background */}
+        <motion.div 
+          className="absolute inset-0 bg-gradient-to-br from-green-900/10 to-transparent opacity-0 group-hover:opacity-100"
+          animate={{
+            background: [
+              "radial-gradient(circle at 0% 0%, rgba(74, 222, 128, 0.1), transparent 50%)",
+              "radial-gradient(circle at 100% 100%, rgba(74, 222, 128, 0.1), transparent 50%)",
+              "radial-gradient(circle at 0% 0%, rgba(74, 222, 128, 0.1), transparent 50%)"
+            ]
+          }}
+          transition={{ duration: 8, repeat: Infinity }}
+        />
+        
+        <div className="-mt-8 relative z-10"> {/* Increased from -mt-6 to -mt-8 to match pt-8 */}
+          <motion.span 
+            className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-green-500 to-green-700 rounded-md shadow-md relative" // Increased from p-2 to p-3
+            whileHover={{ rotate: 5, scale: 1.1 }}
           >
-            {[
-              { 
-                icon: <Zap className="h-6 w-6 text-white" />, 
-                title: "Blazing Fast Testing", 
-                description: "Run tests at lightning speed with optimized workflows."
-              },
-              { 
-                icon: <Code className="h-6 w-6 text-white" />, 
-                title: "Code-Centric", 
-                description: "Built by developers, for developers—manage code with precision."
-              },
-              { 
-                icon: <Terminal className="h-6 w-6 text-white" />, 
-                title: "CLI Integration", 
-                description: "Seamless command-line tools for ultimate control."
-              }
-            ].map((feature, index) => (
-              <motion.div 
-                key={index} 
-                className="pt-6"
-                variants={fadeIn}
-              >
-                <motion.div 
-                  className="flow-root bg-gray-800 rounded-lg px-6 pb-8 shadow-lg border border-gray-700 h-full relative overflow-hidden group"
-                  whileHover={{ 
-                    y: -10, 
-                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.8)",
-                    borderColor: "rgba(74, 222, 128, 0.5)" 
-                  }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {/* Animated gradient background */}
-                  <motion.div 
-                    className="absolute inset-0 bg-gradient-to-br from-green-900/10 to-transparent opacity-0 group-hover:opacity-100"
-                    animate={{
-                      background: [
-                        "radial-gradient(circle at 0% 0%, rgba(74, 222, 128, 0.1), transparent 50%)",
-                        "radial-gradient(circle at 100% 100%, rgba(74, 222, 128, 0.1), transparent 50%)",
-                        "radial-gradient(circle at 0% 0%, rgba(74, 222, 128, 0.1), transparent 50%)"
-                      ]
-                    }}
-                    transition={{ duration: 8, repeat: Infinity }}
-                  />
-                  
-                  <div className="-mt-6 relative z-10">
-                    <motion.span 
-                      className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-green-500 to-green-700 rounded-md shadow-md relative"
-                      whileHover={{ rotate: 5, scale: 1.1 }}
-                    >
-                      {feature.icon}
-                      {/* Pulse effect */}
-                      <motion.span 
-                        className="absolute inset-0 rounded-md bg-white"
-                        animate={{ 
-                          opacity: [0, 0.5, 0],
-                          scale: [0.8, 1.2, 0.8],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          repeatType: "loop",
-                          delay: index
-                        }}
-                      />
-                    </motion.span>
-                    <h3 className="mt-8 text-lg font-medium text-white group-hover:text-green-300 transition-colors duration-300">{feature.title}</h3>
-                    <p className="mt-5 text-base text-gray-400">
-                      {feature.description}
-                    </p>
-                  </div>
-                </motion.div>
-              </motion.div>
-            ))}
-          </motion.div>
+            {feature.icon}
+            {/* Pulse effect */}
+            <motion.span 
+              className="absolute inset-0 rounded-md bg-white"
+              animate={{ 
+                opacity: [0, 0.5, 0],
+                scale: [0.8, 1.2, 0.8],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                repeatType: "loop",
+                delay: index
+              }}
+            />
+          </motion.span>
+          <h3 className="mt-10 text-lg font-medium text-white group-hover:text-green-300 transition-colors duration-300"> {/* Increased from mt-8 to mt-10 */}
+            {feature.title}
+          </h3>
+          <p className="mt-6 text-base text-gray-400"> {/* Increased from mt-5 to mt-6 */}
+            {feature.description}
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  ))}
+</motion.div>
         </div>
       </div>
 
