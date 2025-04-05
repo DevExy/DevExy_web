@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import SuccessPopup from "../components/SuccessPopup";
 
 export default function LoginPage() {
+  const handleSignUp = () => {
+    navigate("/register");
+  };
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -175,17 +178,27 @@ export default function LoginPage() {
             </motion.div>
           </form>
 
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.8 }} className="mt-8 text-center">
-            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-              Don't have an account?{" "}
-              <motion.a whileHover={{ scale: 1.05 }} href="/register" className="text-green-500 hover:text-green-600 font-medium transition-colors duration-200">
-                Sign up now
-              </motion.a>
-            </p>
-          </motion.div>
+<motion.div 
+  initial={{ opacity: 0 }} 
+  animate={{ opacity: 1 }} 
+  transition={{ duration: 0.5, delay: 0.8 }} 
+  className="mt-8 text-center"
+>
+  <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+    Don't have an account?{" "}
+    <motion.a 
+      whileHover={{ scale: 1.05 }} 
+      onClick={handleSignUp} // Using dedicated handler
+      className="text-green-500 hover:text-green-600 font-medium transition-colors duration-200"
+    >
+      Sign up now
+    </motion.a>
+  </p>
+</motion.div>
         </div>
+ 
       </motion.div>
-
+   
       <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.7, scale: 1 }} transition={{ duration: 0.8, delay: 1.2 }} className="fixed bottom-0 left-0 w-64 h-64 bg-gradient-to-r from-green-300 to-green-400 rounded-full -mb-32 -ml-32 blur-2xl opacity-20 z-0" />
       <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.7, scale: 1 }} transition={{ duration: 0.8, delay: 1.3 }} className="fixed top-0 right-0 w-80 h-80 bg-gradient-to-l from-green-300 to-green-400 rounded-full -mt-40 -mr-40 blur-2xl opacity-20 z-0" />
 

@@ -236,19 +236,24 @@ export default function RegisterPage() {
               </button>
             </motion.div>
           </form>
-
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 1.2 }} className="mt-8 text-center">
-            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-              Already have an account?{" "}
-              <motion.a
-                whileHover={{ scale: 1.05 }}
-                onClick={() => navigate("/login")}
-                className="text-green-500 hover:text-green-600 font-medium transition-colors duration-200 cursor-pointer"
-              >
-                Log in here
-              </motion.a>
-            </p>
-          </motion.div>
+         
+<motion.div 
+  initial={{ opacity: 0 }} 
+  animate={{ opacity: 1 }} 
+  transition={{ duration: 0.5, delay: 1.2 }} 
+  className="mt-8 text-center"
+>
+  <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+    Already have an account?{" "}
+    <motion.a 
+      whileHover={{ scale: 1.05 }} 
+      onClick={handleSignIn}
+      className="text-green-500 hover:text-green-600 font-medium transition-colors duration-200"
+    >
+      Log in here
+    </motion.a>
+  </p>
+</motion.div>
         </div>
       </motion.div>
 
