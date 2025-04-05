@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import JSZip from "jszip";
 
-export default function DiagramSection({ darkMode, setDiagram }) {
+export default function DiagramSection({ darkMode, setDiagram, accessToken }) {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -13,9 +13,6 @@ export default function DiagramSection({ darkMode, setDiagram }) {
   const [generatedDiagram, setGeneratedDiagram] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Authentication token
-  const authToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzQzODQ3NTUxfQ.ayV-UIOTztiZO7w1OMg7vywOF9CLpVdJPpj1QCCprSI";
-
   // Fetch diagram types on component mount
   useEffect(() => {
     const fetchDiagramTypes = async () => {
@@ -23,7 +20,7 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         const response = await fetch("https://devexy-backend.azurewebsites.net/diagrams/types", {
           headers: {
             "Accept": "application/json",
-            "Authorization": authToken
+            "Authorization": accessToken
           }
         });
         if (!response.ok) throw new Error("Failed to fetch diagram types");
@@ -42,7 +39,7 @@ export default function DiagramSection({ darkMode, setDiagram }) {
       }
     };
     fetchDiagramTypes();
-  }, []);
+  }, [accessToken]);
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -53,7 +50,6 @@ export default function DiagramSection({ darkMode, setDiagram }) {
 
     if (selectedFiles.length > 0) {
       const file = selectedFiles[0];
-      console.log("Detected MIME type:", file.type); // Debug MIME type
       const isZip = file.type === "application/zip" || file.name.toLowerCase().endsWith(".zip");
       if (!isZip) {
         setError("Please upload a valid zip file");
@@ -127,7 +123,7 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
-          "Authorization": authToken
+          "Authorization": accessToken
         },
         body: JSON.stringify(payload)
       });
@@ -217,9 +213,9 @@ export default function DiagramSection({ darkMode, setDiagram }) {
 
           <button
             onClick={handleExtract}
-            disabled={isExtracting || files.length === 0 || files[0].type !== "application/zip" || files[0].name.toLowerCase().endsWith(".zip")}
+            disabled={isExtracting || files.length === 0 || (files[0].type !== "application/zip" && !files[0].name.toLowerCase().endsWith(".zip"))}
             className={`w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-all duration-300 ${
-              (isExtracting || files.length === 0 || files[0].type !== "application/zip" || !files[0].name.toLowerCase().endsWith(".zip")) ? "opacity-50 cursor-not-allowed" : ""
+              (isExtracting || files.length === 0 || files[0].type !== "application/zip" && !files[0].name.toLowerCase().endsWith(".zip")) ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
             {isExtracting ? "Extracting..." : "Extract Files"}
