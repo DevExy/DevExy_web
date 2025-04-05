@@ -15,34 +15,6 @@ export default function LoginPage() {
   useEffect(() => {
     const prefersDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setDarkMode(prefersDarkMode);
-
-    const disableRightClick = (e) => {
-      e.preventDefault();
-      alert("Right-click is disabled for security reasons.");
-    };
-    const disableDevTools = (e) => {
-      if (e.key === "F12" || (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J")) || (e.ctrlKey && e.key === "U")) {
-        e.preventDefault();
-        alert("Developer tools are disabled during this session.");
-      }
-    };
-    const detectDevTools = () => {
-      const threshold = 160;
-      if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
-        alert("Developer tools detected! This session will be terminated.");
-        window.location.href = "/";
-      }
-    };
-
-    document.addEventListener("contextmenu", disableRightClick);
-    document.addEventListener("keydown", disableDevTools);
-    const devToolsInterval = setInterval(detectDevTools, 1000);
-
-    return () => {
-      document.removeEventListener("contextmenu", disableRightClick);
-      document.removeEventListener("keydown", disableDevTools);
-      clearInterval(devToolsInterval);
-    };
   }, []);
 
   const toggleTheme = () => setDarkMode(!darkMode);
@@ -52,13 +24,23 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    const payload = { username, password };
+    // Create URLSearchParams for x-www-form-urlencoded format
+    const formData = new URLSearchParams();
+    formData.append("username", username);
+    formData.append("password", password);
+    formData.append("grant_type", "password");
+    formData.append("scope", "");
+    formData.append("client_id", "string"); // Replace with actual client_id
+    formData.append("client_secret", "string"); // Replace with actual client_secret
 
     try {
       const response = await fetch("https://devexy-backend.azurewebsites.net/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "accept": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData,
       });
 
       const data = await response.json();
@@ -81,7 +63,7 @@ export default function LoginPage() {
 
   const handlePopupClose = () => {
     setShowSuccess(false);
-    navigate("/user");
+    navigate("/home");
   };
 
   return (
@@ -99,9 +81,9 @@ export default function LoginPage() {
       </div>
 
       <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="absolute top-8 left-8 flex items-center cursor-pointer" onClick={() => navigate("/")}>
-  <img src="/logo.png" alt="Devexy Logo" className="h-6 w-auto" />
-  <span className={`m-1 text-xl font-light ${darkMode ? "text-green-400" : "text-green-600"}`}>Devexy</span>
-</motion.div>
+        <img src="/logo.png" alt="Devexy Logo" className="h-6 w-auto" />
+        <span className={`m-1 text-xl font-light ${darkMode ? "text-green-400" : "text-green-600"}`}>Devexy</span>
+      </motion.div>
 
       <motion.button
         initial={{ opacity: 0, x: 50 }}
@@ -136,9 +118,9 @@ export default function LoginPage() {
         <div className="h-2 w-full bg-gradient-to-r from-green-400 to-green-600" />
         <div className="p-10">
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
-          <div className="flex justify-center mb-6">
-  <img src="/logo.png" alt="Devexy Logo" className="h-10 w-auto" />
-</div>
+            <div className="flex justify-center mb-6">
+              <img src="/logo.png" alt="Devexy Logo" className="h-10 w-auto" />
+            </div>
             <h2 className="text-3xl font-bold text-center mb-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-green-600">Welcome back</span>
             </h2>
