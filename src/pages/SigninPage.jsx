@@ -19,35 +19,8 @@ export default function RegisterPage() {
   useEffect(() => {
     const prefersDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setDarkMode(prefersDarkMode);
-
-    const disableRightClick = (e) => {
-      e.preventDefault();
-      alert("Right-click is disabled for security reasons.");
-    };
-    const disableDevTools = (e) => {
-      if (e.key === "F12" || (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J")) || (e.ctrlKey && e.key === "U")) {
-        e.preventDefault();
-        alert("Developer tools are disabled during this session.");
-      }
-    };
-    const detectDevTools = () => {
-      const threshold = 160;
-      if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
-        alert("Developer tools detected! This session will be terminated.");
-        window.location.href = "/";
-      }
-    };
-
-    document.addEventListener("contextmenu", disableRightClick);
-    document.addEventListener("keydown", disableDevTools);
-    const devToolsInterval = setInterval(detectDevTools, 1000);
-
-    return () => {
-      document.removeEventListener("contextmenu", disableRightClick);
-      document.removeEventListener("keydown", disableDevTools);
-      clearInterval(devToolsInterval);
-    };
-  }, []);
+  }, 
+  []);
 
   const toggleTheme = () => setDarkMode(!darkMode);
 
@@ -155,8 +128,8 @@ export default function RegisterPage() {
         <div className="p-10">
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
           <div className="flex justify-center mb-6">
-  <img src="/logo.png" alt="Devexy Logo" className="h-12 w-auto" />
-</div>
+            <img src="/logo.png" alt="Devexy Logo" className="h-12 w-auto" />
+          </div>
             <h2 className="text-3xl font-bold text-center mb-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-green-600">Create Account</span>
             </h2>
