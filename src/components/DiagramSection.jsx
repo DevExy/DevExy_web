@@ -14,7 +14,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-// Custom node component from existing DiagramSection
+// Custom Node Component
 const CustomNode = ({ data, selected }) => {
   return (
     <div
@@ -26,55 +26,75 @@ const CustomNode = ({ data, selected }) => {
         color: data.textColor || "#000000",
         border: data.border || "1px solid #222",
         width: data.width || "200px",
+        borderRadius: data.shape === "circle" ? "50%" : data.shape === "diamond" ? "8px" : "8px",
+        transform: data.shape === "diamond" ? "rotate(45deg)" : "none",
       }}
     >
-      {/* Adding handles from DashboardPage */}
       <Handle
         type="source"
         position="top"
         id="top"
-        style={{ background: '#555', width: 10, height: 10 }}
+        style={{ background: "#555", width: 10, height: 10 }}
       />
       <Handle
         type="source"
         position="right"
         id="right"
-        style={{ background: '#555', width: 10, height: 10 }}
+        style={{ background: "#555", width: 10, height: 10 }}
       />
-      <div className="font-bold text-sm mb-1">{data.label.split('\n')[0]}</div>
-      <div className="text-xs opacity-80">{data.label.split('\n').slice(1).join('\n')}</div>
-      {data.techStack && (
-        <div className="mt-2">
-          <div className="text-xs font-semibold mb-1">Tech Stack:</div>
-          <div className="flex flex-wrap gap-1">
-            {data.techStack.map((tech, index) => (
-              <span
-                key={index}
-                className="text-xs px-2 py-1 rounded bg-white bg-opacity-20"
-              >
-                {tech}
-              </span>
-            ))}
+      <div
+        style={{
+          transform: data.shape === "diamond" ? "rotate(-45deg)" : "none",
+        }}
+      >
+        <div className="font-bold text-sm mb-1">{data.label.split("\n")[0]}</div>
+        <div className="text-xs opacity-80">{data.label.split("\n").slice(1).join("\n")}</div>
+        {data.attributes && (
+          <div className="mt-2">
+            <div className="text-xs font-semibold mb-1">Attributes:</div>
+            <ul className="text-xs">
+              {data.attributes.map((attr, index) => (
+                <li key={index}>
+                  {attr.name} ({attr.type})
+                  {attr.isPrimaryKey && <span className="text-yellow-500"> [PK]</span>}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      )}
+        )}
+        {data.techStack && (
+          <div className="mt-2">
+            <div className="text-xs font-semibold mb-1">Tech Stack:</div>
+            <div className="flex flex-wrap gap-1">
+              {data.techStack.map((tech, index) => (
+                <span
+                  key={index}
+                  className="text-xs px-2 py-1 rounded bg-white bg-opacity-20"
+                >
+                  {tech}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       <Handle
         type="target"
         position="bottom"
         id="bottom"
-        style={{ background: '#555', width: 10, height: 10 }}
+        style={{ background: "#555", width: 10, height: 10 }}
       />
       <Handle
         type="target"
         position="left"
         id="left"
-        style={{ background: '#555', width: 10, height: 10 }}
+        style={{ background: "#555", width: 10, height: 10 }}
       />
     </div>
   );
 };
 
-// Custom Edge Component from DashboardPage
+// Custom Edge Component
 const CustomEdge = ({
   id,
   sourceX,
@@ -87,7 +107,9 @@ const CustomEdge = ({
   markerEnd,
   label,
 }) => {
-  const edgePath = `M${sourceX},${sourceY} C${sourceX + (targetX - sourceX) / 2},${sourceY} ${sourceX + (targetX - sourceX) / 2},${targetY} ${targetX},${targetY}`;
+  const edgePath = `M${sourceX},${sourceY} C${sourceX + (targetX - sourceX) / 2},${sourceY} ${
+    sourceX + (targetX - sourceX) / 2
+  },${targetY} ${targetX},${targetY}`;
   const labelX = sourceX + (targetX - sourceX) / 2;
   const labelY = sourceY + (targetY - sourceY) / 2;
 
@@ -137,12 +159,10 @@ export default function DiagramSection({ darkMode, setDiagram }) {
   const [accessToken, setAccessToken] = useState("");
   const [diagramTitle, setDiagramTitle] = useState("");
   const [diagramDescription, setDiagramDescription] = useState("");
-  // Additional states from DashboardPage
   const [selectedElement, setSelectedElement] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedEdge, setSelectedEdge] = useState(null);
 
-  // Existing useEffect for token and diagram types
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
@@ -161,7 +181,7 @@ export default function DiagramSection({ darkMode, setDiagram }) {
             Authorization: `Bearer ${accessToken}`,
           },
         });
-        
+
         if (!response.ok) {
           if (response.status === 401) {
             localStorage.removeItem("access_token");
@@ -171,7 +191,7 @@ export default function DiagramSection({ darkMode, setDiagram }) {
           }
           throw new Error("Failed to fetch diagram types");
         }
-        
+
         const data = await response.json();
         setDiagramTypes(data.diagram_types || []);
       } catch (err) {
@@ -181,27 +201,59 @@ export default function DiagramSection({ darkMode, setDiagram }) {
           { type: "architecture", name: "Architecture Diagram" },
           { type: "activity", name: "Activity Diagram" },
           { type: "schema", name: "Schema Diagram" },
-          { type: "user flow", name: "User Flow Diagram" },
+          { type: "user_flow", name: "User Flow Diagram" },
           { type: "workflow", name: "Workflow Diagram" },
         ]);
       }
     };
-    
+
     fetchDiagramTypes();
   }, [accessToken]);
 
-  // Adding default diagram from DashboardPage
   useEffect(() => {
     if (!diagramTitle && nodes.length === 0 && edges.length === 0) {
       const defaultDiagram = {
         diagram_type: "architecture",
         data: {
           elements: [
-            { id: "web_browser", type: "external_system", name: "Web Browser", description: "User interface for interacting with the application", tech_stack: ["HTML", "JavaScript"], position: { x: 50, y: 100 } },
-            { id: "flask_app", type: "component", name: "Flask Application", description: "Main application handling web requests", tech_stack: ["Python", "Flask"], position: { x: 350, y: 200 } },
-            { id: "file_system", type: "data_store", name: "File System", description: "Storage for uploaded videos", tech_stack: ["OS"], position: { x: 650, y: 100 } },
-            { id: "conn_web_flask", type: "connection", source: "web_browser", target: "flask_app", description: "HTTP requests" },
-            { id: "conn_flask_file", type: "connection", source: "flask_app", target: "file_system", description: "File I/O" },
+            {
+              id: "web_browser",
+              type: "external_system",
+              name: "Web Browser",
+              description: "User interface for interacting with the application",
+              tech_stack: ["HTML", "JavaScript"],
+              position: { x: 50, y: 100 },
+            },
+            {
+              id: "flask_app",
+              type: "component",
+              name: "Flask Application",
+              description: "Main application handling web requests",
+              tech_stack: ["Python", "Flask"],
+              position: { x: 350, y: 200 },
+            },
+            {
+              id: "file_system",
+              type: "data_store",
+              name: "File System",
+              description: "Storage for uploaded videos",
+              tech_stack: ["OS"],
+              position: { x: 650, y: 100 },
+            },
+            {
+              id: "conn_web_flask",
+              type: "connection",
+              source: "web_browser",
+              target: "flask_app",
+              description: "HTTP requests",
+            },
+            {
+              id: "conn_flask_file",
+              type: "connection",
+              source: "flask_app",
+              target: "file_system",
+              description: "File I/O",
+            },
           ],
           title: "Deepfake Detection System Architecture",
           description: "System architecture diagram showing components and connections",
@@ -270,55 +322,15 @@ export default function DiagramSection({ darkMode, setDiagram }) {
   };
 
   const transformDataToFlowElements = (result) => {
-    if (!result || !result.data) return { nodes: [], edges: [] };
+    if (!result || !result.data) return;
 
     setDiagramTitle(result.data.title || "Untitled Diagram");
     setDiagramDescription(result.data.description || "");
 
-    const newNodes = result.data.elements
-      .filter((el) => el.type !== "connection")
-      .map((el) => {
-        let nodeType = "custom";
-        let background = darkMode ? "#4B5EAA" : "#E6F3FF";
-        let textColor = darkMode ? "#FFFFFF" : "#000000";
+    let newNodes = [];
+    let newEdges = [];
 
-        switch(el.type) {
-          case "component":
-            background = darkMode ? "#2E7D32" : "#C8E6C9";
-            break;
-          case "external_system":
-            background = darkMode ? "#1565C0" : "#BBDEFB";
-            break;
-          case "data_store":
-            background = darkMode ? "#6A1B9A" : "#E1BEE7";
-            break;
-        }
-
-        return {
-          id: el.id,
-          type: nodeType,
-          data: { 
-            label: `${el.name || "Unnamed"}\n${el.description || ""}`,
-            techStack: el.tech_stack,
-            background,
-            textColor,
-            border: el.style?.border || "1px solid #222",
-            width: "220px"
-          },
-          position: {
-            x: el.position?.x ?? 0,
-            y: el.position?.y ?? 0,
-          },
-          style: {
-            borderRadius: "8px",
-          },
-        };
-      });
-
-    const nodePositions = {};
-    newNodes.forEach(node => nodePositions[node.id] = node.position);
-
-    const getHandles = (source, target) => {
+    const getHandles = (source, target, nodePositions) => {
       const sourcePos = nodePositions[source];
       const targetPos = nodePositions[target];
       if (!sourcePos || !targetPos) return { sourceHandle: "right", targetHandle: "left" };
@@ -329,33 +341,305 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         : { sourceHandle: dy > 0 ? "bottom" : "top", targetHandle: dy > 0 ? "top" : "bottom" };
     };
 
-    const newEdges = result.data.elements
-      .filter((el) => el.type === "connection")
-      .map((el) => {
-        const { sourceHandle, targetHandle } = getHandles(el.source, el.target);
-        return {
-          id: el.id || `edge_${el.source}_${el.target}`,
-          source: el.source || "",
-          target: el.target || "",
-          sourceHandle,
-          targetHandle,
+    switch (result.diagram_type) {
+      case "architecture":
+        newNodes = result.data.elements
+          .filter((el) => el.type !== "connection")
+          .map((el) => {
+            let background = darkMode ? "#4B5EAA" : "#E6F3FF";
+            let textColor = darkMode ? "#FFFFFF" : "#000000";
+
+            switch (el.type) {
+              case "component":
+                background = darkMode ? "#2E7D32" : "#C8E6C9";
+                break;
+              case "external_system":
+                background = darkMode ? "#1565C0" : "#BBDEFB";
+                break;
+              case "data_store":
+                background = darkMode ? "#6A1B9A" : "#E1BEE7";
+                break;
+            }
+
+            return {
+              id: el.id,
+              type: "custom",
+              data: {
+                label: `${el.name || "Unnamed"}\n${el.description || ""}`,
+                techStack: el.tech_stack,
+                background,
+                textColor,
+                border: el.style?.border || "1px solid #222",
+                width: "220px",
+              },
+              position: { x: el.position?.x ?? 0, y: el.position?.y ?? 0 },
+              style: { borderRadius: "8px" },
+            };
+          });
+
+        const nodePositionsArch = {};
+        newNodes.forEach((node) => (nodePositionsArch[node.id] = node.position));
+
+        newEdges = result.data.elements
+          .filter((el) => el.type === "connection")
+          .map((el) => {
+            const { sourceHandle, targetHandle } = getHandles(el.source, el.target, nodePositionsArch);
+            return {
+              id: el.id || `edge_${el.source}_${el.target}`,
+              source: el.source || "",
+              target: el.target || "",
+              sourceHandle,
+              targetHandle,
+              type: "custom",
+              animated: true,
+              label: el.description || "",
+              style: {
+                stroke: darkMode ? "#FFFFFF" : "#000000",
+                strokeWidth: 2,
+                strokeDasharray: el.style?.lineStyle === "dash" ? "5,5" : "none",
+              },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: darkMode ? "#FFFFFF" : "#000000",
+              },
+            };
+          });
+        break;
+
+      case "schema":
+        newNodes = result.data.entities.map((entity) => ({
+          id: entity.id,
           type: "custom",
-          animated: true,
-          label: el.description || "",
-          style: {
-            stroke: darkMode ? "#FFFFFF" : "#000000",
-            strokeWidth: 2,
-            strokeDasharray: el.style?.lineStyle === "dash" ? "5,5" : "none",
+          data: {
+            label: `${entity.name || "Unnamed"}\n${entity.description || ""}`,
+            attributes: entity.attributes,
+            background: darkMode ? "#6A1B9A" : "#E1BEE7",
+            textColor: darkMode ? "#FFFFFF" : "#000000",
+            border: entity.style?.border || "1px solid #222",
+            width: "250px",
           },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: darkMode ? "#FFFFFF" : "#000000",
+          position: { x: entity.position?.x ?? 0, y: entity.position?.y ?? 0 },
+          style: { borderRadius: "8px" },
+        }));
+
+        const nodePositionsSchema = {};
+        newNodes.forEach((node) => (nodePositionsSchema[node.id] = node.position));
+
+        newEdges = result.data.relations.map((rel) => {
+          const { sourceHandle, targetHandle } = getHandles(rel.source, rel.target, nodePositionsSchema);
+          return {
+            id: rel.id || `edge_${rel.source}_${rel.target}`,
+            source: rel.source || "",
+            target: rel.target || "",
+            sourceHandle,
+            targetHandle,
+            type: "custom",
+            animated: true,
+            label: `${rel.label || ""} (${rel.cardinality.source}:${rel.cardinality.target})`,
+            style: {
+              stroke: darkMode ? "#FFFFFF" : "#000000",
+              strokeWidth: 2,
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: darkMode ? "#FFFFFF" : "#000000",
+            },
+          };
+        });
+        break;
+
+      case "user_flow":
+        newNodes = result.data.screens.map((screen) => ({
+          id: screen.id,
+          type: "custom",
+          data: {
+            label: `${screen.name || "Unnamed"}\n${screen.content || ""}`,
+            background: darkMode ? "#0288D1" : "#B3E5FC",
+            textColor: darkMode ? "#FFFFFF" : "#000000",
+            border: screen.style?.border || "1px solid #222",
+            width: "220px",
           },
-        };
-      });
+          position: { x: screen.position?.x ?? 0, y: screen.position?.y ?? 0 },
+          style: { borderRadius: "8px" },
+        }));
+
+        const nodePositionsUserFlow = {};
+        newNodes.forEach((node) => (nodePositionsUserFlow[node.id] = node.position));
+
+        newEdges = result.data.transitions.map((trans) => {
+          const { sourceHandle, targetHandle } = getHandles(trans.source, trans.target, nodePositionsUserFlow);
+          return {
+            id: trans.id || `edge_${trans.source}_${trans.target}`,
+            source: trans.source || "",
+            target: trans.target || "",
+            sourceHandle,
+            targetHandle,
+            type: "custom",
+            animated: true,
+            label: `${trans.action || ""}\n${trans.condition || ""}`,
+            style: {
+              stroke: darkMode ? "#FFFFFF" : "#000000",
+              strokeWidth: 2,
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: darkMode ? "#FFFFFF" : "#000000",
+            },
+          };
+        });
+        break;
+
+      case "workflow":
+        newNodes = result.data.steps.map((step) => {
+          let background = darkMode ? "#4B5EAA" : "#E6F3FF";
+          let textColor = darkMode ? "#FFFFFF" : "#000000";
+          let shape = "rectangle";
+
+          switch (step.type) {
+            case "start":
+              background = darkMode ? "#2E7D32" : "#C8E6C9";
+              shape = "circle";
+              break;
+            case "task":
+              background = darkMode ? "#1565C0" : "#BBDEFB";
+              break;
+            case "gateway":
+              background = darkMode ? "#FFD700" : "#FFF9C4";
+              shape = "diamond";
+              break;
+            case "end":
+              background = darkMode ? "#B71C1C" : "#FFCDD2";
+              shape = "circle";
+              break;
+          }
+
+          return {
+            id: step.id,
+            type: "custom",
+            data: {
+              label: `${step.name || "Unnamed"}\n${step.description || ""}`,
+              background,
+              textColor,
+              border: step.style?.border || "1px solid #222",
+              width: shape === "diamond" ? "250px" : "220px",
+              shape,
+            },
+            position: { x: step.position?.x ?? 0, y: step.position?.y ?? 0 },
+            style: {
+              borderRadius: shape === "circle" ? "50%" : "8px",
+              transform: shape === "diamond" ? "rotate(45deg)" : "none",
+            },
+          };
+        });
+
+        const nodePositionsWorkflow = {};
+        newNodes.forEach((node) => (nodePositionsWorkflow[node.id] = node.position));
+
+        newEdges = result.data.transitions.map((trans) => {
+          const { sourceHandle, targetHandle } = getHandles(trans.source, trans.target, nodePositionsWorkflow);
+          return {
+            id: trans.id || `edge_${trans.source}_${trans.target}`,
+            source: trans.source || "",
+            target: trans.target || "",
+            sourceHandle,
+            targetHandle,
+            type: "custom",
+            animated: true,
+            label: trans.condition || "",
+            style: {
+              stroke: darkMode ? "#FFFFFF" : "#000000",
+              strokeWidth: 2,
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: darkMode ? "#FFFFFF" : "#000000",
+            },
+          };
+        });
+        break;
+
+      case "activity":
+        newNodes = result.data.nodes.map((node) => {
+          let background = darkMode ? "#4B5EAA" : "#E6F3FF";
+          let textColor = darkMode ? "#FFFFFF" : "#000000";
+          let shape = "rectangle";
+
+          switch (node.type) {
+            case "start":
+              background = darkMode ? "#2E7D32" : "#C8E6C9";
+              shape = "circle";
+              break;
+            case "action":
+              background = darkMode ? "#1565C0" : "#BBDEFB";
+              break;
+            case "decision":
+              background = darkMode ? "#FFD700" : "#FFF9C4";
+              shape = "diamond";
+              break;
+            case "end":
+              background = darkMode ? "#B71C1C" : "#FFCDD2";
+              shape = "circle";
+              break;
+          }
+
+          return {
+            id: node.id,
+            type: "custom",
+            data: {
+              label: `${node.name || "Unnamed"}\n${node.description || ""}`,
+              background,
+              textColor,
+              border: node.style?.border || "1px solid #222",
+              width: shape === "diamond" ? "250px" : "220px",
+              shape,
+            },
+            position: { x: node.position?.x ?? 0, y: node.position?.y ?? 0 },
+            style: {
+              borderRadius: shape === "circle" ? "50%" : "8px",
+              transform: shape === "diamond" ? "rotate(45deg)" : "none",
+            },
+          };
+        });
+
+        const nodePositionsActivity = {};
+        newNodes.forEach((node) => (nodePositionsActivity[node.id] = node.position));
+
+        newEdges = result.data.connections.map((conn) => {
+          const { sourceHandle, targetHandle } = getHandles(conn.source, conn.target, nodePositionsActivity);
+          return {
+            id: conn.id || `edge_${conn.source}_${conn.target}`,
+            source: conn.source || "",
+            target: conn.target || "",
+            sourceHandle,
+            targetHandle,
+            type: "custom",
+            animated: true,
+            label: conn.label || "",
+            style: {
+              stroke: darkMode ? "#FFFFFF" : "#000000",
+              strokeWidth: 2,
+              strokeDasharray: conn.style?.lineStyle === "dash" ? "5,5" : "none",
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: darkMode ? "#FFFFFF" : "#000000",
+            },
+          };
+        });
+        break;
+
+      default:
+        break;
+    }
 
     setNodes(newNodes);
     setEdges(newEdges);
+
+    setTimeout(() => {
+      if (reactFlowInstance) {
+        reactFlowInstance.fitView({ padding: 0.5 });
+      }
+    }, 100);
   };
 
   const handleGenerate = async () => {
@@ -363,41 +647,41 @@ export default function DiagramSection({ darkMode, setDiagram }) {
       setError("Authentication required. Please login first.");
       return;
     }
-  
+
     if (!diagramType) {
       setError("Please select a diagram type");
       return;
     }
-  
+
     if (extractedFiles.length === 0) {
       setError("Please extract files first");
       return;
     }
-  
+
     try {
       setIsUploading(true);
-  
-      const filesPayload = extractedFiles.map(file => ({
+
+      const filesPayload = extractedFiles.map((file) => ({
         content: file.content,
-        filepath: file.path
+        filepath: file.path,
       }));
-  
+
       const requestBody = {
         files: filesPayload,
         diagram_type: diagramType,
-        description: "Generate diagram based on the provided files"
+        description: "Generate diagram based on the provided files",
       };
-  
+
       const response = await fetch("https://devexy-backend.azurewebsites.net/diagrams/generate", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "accept": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          accept: "application/json",
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
       });
-  
+
       if (!response.ok) {
         if (response.status === 401) {
           localStorage.removeItem("access_token");
@@ -407,18 +691,11 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         }
         throw new Error(await response.text());
       }
-  
+
       const result = await response.json();
       setDiagram(result);
-  
       transformDataToFlowElements(result);
       setError(null);
-  
-      setTimeout(() => {
-        if (reactFlowInstance) {
-          reactFlowInstance.fitView({ padding: 0.5 });
-        }
-      }, 100);
     } catch (err) {
       console.error("Error generating diagram:", err);
       setError(err.message || "Failed to generate diagram. Please try again.");
@@ -450,31 +727,44 @@ export default function DiagramSection({ darkMode, setDiagram }) {
     setReactFlowInstance(rfi);
   };
 
-  // Additional functionality from DashboardPage
-  const onEdgeClick = useCallback((event, edge) => {
-    event.stopPropagation();
-    setSelectedEdge(edge);
-    const newLabel = prompt("Edit connection label:", edge.label);
-    if (newLabel !== null) {
-      setEdges((eds) => eds.map((e) => (e.id === edge.id ? { ...e, label: newLabel } : e)));
-    }
-  }, [setEdges]);
+  const onEdgeClick = useCallback(
+    (event, edge) => {
+      event.stopPropagation();
+      setSelectedEdge(edge);
+      const newLabel = prompt("Edit connection label:", edge.label);
+      if (newLabel !== null) {
+        setEdges((eds) => eds.map((e) => (e.id === edge.id ? { ...e, label: newLabel } : e)));
+      }
+    },
+    [setEdges]
+  );
 
-  const onEdgeDelete = useCallback((edgeId) => {
-    setEdges((eds) => eds.filter((e) => e.id !== edgeId));
-    setSelectedEdge(null);
-  }, [setEdges]);
+  const onEdgeDelete = useCallback(
+    (edgeId) => {
+      setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+      setSelectedEdge(null);
+    },
+    [setEdges]
+  );
 
   const editElement = (elementId) => {
-    const element = nodes.find(n => n.id === elementId);
+    const element = nodes.find((n) => n.id === elementId);
     if (!element) return;
-    const newName = prompt("Edit component name:", element.data.label.split('\n')[0]);
+    const newName = prompt("Edit component name:", element.data.label.split("\n")[0]);
     if (newName) {
-      setNodes(nds => nds.map(node => 
-        node.id === elementId 
-          ? { ...node, data: { ...node.data, label: `${newName}\n${node.data.label.split('\n').slice(1).join('\n')}` } }
-          : node
-      ));
+      setNodes((nds) =>
+        nds.map((node) =>
+          node.id === elementId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  label: `${newName}\n${node.data.label.split("\n").slice(1).join("\n")}`,
+                },
+              }
+            : node
+        )
+      );
     }
   };
 
@@ -490,8 +780,9 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         textColor: darkMode ? "#FFFFFF" : "#000000",
         width: "220px",
       },
+      style: { borderRadius: "8px" },
     };
-    setNodes(nds => [...nds, newElement]);
+    setNodes((nds) => [...nds, newElement]);
   };
 
   const onNodeDragStart = (event, node) => {
@@ -501,9 +792,11 @@ export default function DiagramSection({ darkMode, setDiagram }) {
 
   const onNodeDrag = (event, node) => {
     if (isDragging && selectedElement) {
-      setNodes(nds => nds.map(nd => 
-        nd.id === node.id ? { ...nd, position: { x: node.position.x, y: node.position.y } } : nd
-      ));
+      setNodes((nds) =>
+        nds.map((nd) =>
+          nd.id === node.id ? { ...nd, position: { x: node.position.x, y: node.position.y } } : nd
+        )
+      );
     }
   };
 
@@ -514,7 +807,9 @@ export default function DiagramSection({ darkMode, setDiagram }) {
 
   return (
     <div className="p-6">
-      <h2 className={`text-2xl font-bold mb-6 ${darkMode ? "text-white" : "text-gray-800"}`}>Architecture Diagrams</h2>
+      <h2 className={`text-2xl font-bold mb-6 ${darkMode ? "text-white" : "text-gray-800"}`}>
+        Diagrams
+      </h2>
 
       {!accessToken && (
         <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg mb-6">
@@ -523,9 +818,11 @@ export default function DiagramSection({ darkMode, setDiagram }) {
       )}
 
       <div className={`p-6 rounded-xl shadow-lg mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-        <h3 className={`text-xl font-semibold mb-3 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>Upload Files</h3>
+        <h3 className={`text-xl font-semibold mb-3 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+          Upload Files
+        </h3>
         <p className={`mb-4 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-          Upload a zip file, extract it, and generate an architecture diagram.
+          Upload a zip file, extract it, and generate a diagram.
         </p>
 
         <div className="flex flex-col space-y-4">
@@ -563,7 +860,9 @@ export default function DiagramSection({ darkMode, setDiagram }) {
 
           {files.length > 0 && (
             <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
-              <h4 className={`font-medium mb-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>Selected File:</h4>
+              <h4 className={`font-medium mb-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+                Selected File:
+              </h4>
               <div className="flex items-center">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -604,7 +903,9 @@ export default function DiagramSection({ darkMode, setDiagram }) {
 
           {extractedFiles.length > 0 && (
             <div className={`p-4 rounded-lg ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
-              <h4 className={`font-medium mb-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>Extracted Files:</h4>
+              <h4 className={`font-medium mb-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+                Extracted Files:
+              </h4>
               <div className="max-h-40 overflow-y-auto">
                 <ul className="space-y-1">
                   {extractedFiles.map((file, index) => (
@@ -656,18 +957,22 @@ export default function DiagramSection({ darkMode, setDiagram }) {
             onClick={handleGenerate}
             disabled={isUploading || extractedFiles.length === 0 || !diagramType || !accessToken}
             className={`w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-all duration-300 ${
-              isUploading || extractedFiles.length === 0 || !diagramType || !accessToken ? "opacity-50 cursor-not-allowed" : ""
+              isUploading || extractedFiles.length === 0 || !diagramType || !accessToken
+                ? "opacity-50 cursor-not-allowed"
+                : ""
             }`}
           >
             {isUploading ? "Generating..." : "Generate Diagram"}
           </button>
 
           {error && (
-            <div className={`p-4 rounded-lg ${
-              error.includes("expired") || error.includes("required") 
-                ? "bg-yellow-100 text-yellow-800" 
-                : "bg-red-100 text-red-700"
-            }`}>
+            <div
+              className={`p-4 rounded-lg ${
+                error.includes("expired") || error.includes("required")
+                  ? "bg-yellow-100 text-yellow-800"
+                  : "bg-red-100 text-red-700"
+              }`}
+            >
               {error}
             </div>
           )}
@@ -701,7 +1006,7 @@ export default function DiagramSection({ darkMode, setDiagram }) {
               </button>
             </div>
           </div>
-          
+
           <div className="h-[600px] w-full rounded-xl overflow-hidden border">
             <ReactFlowProvider>
               <ReactFlow
@@ -723,23 +1028,23 @@ export default function DiagramSection({ darkMode, setDiagram }) {
                 nodesDraggable
                 style={{ background: darkMode ? "#1F2937" : "#F9FAFB" }}
                 defaultEdgeOptions={{
-                  type: 'custom',
+                  type: "custom",
                   animated: true,
                   markerEnd: { type: MarkerType.ArrowClosed, color: darkMode ? "#FFFFFF" : "#000000" },
                   style: { stroke: darkMode ? "#FFFFFF" : "#000000", strokeWidth: 2 },
                 }}
               >
-                <Background 
-                  color={darkMode ? "#4B5563" : "#D1D5DB"} 
-                  gap={16} 
+                <Background
+                  color={darkMode ? "#4B5563" : "#D1D5DB"}
+                  gap={16}
                   variant={darkMode ? "dots" : "lines"}
                 />
-                <Controls 
-                  position="top-right" 
+                <Controls
+                  position="top-right"
                   showInteractive={false}
-                  className={`${darkMode ? 'bg-gray-700' : 'bg-white'} p-1 rounded shadow`}
+                  className={`${darkMode ? "bg-gray-700" : "bg-white"} p-1 rounded shadow`}
                 />
-                <MiniMap 
+                <MiniMap
                   nodeColor={(node) => node.data?.background || (darkMode ? "#4B5EAA" : "#E6F3FF")}
                   maskColor={darkMode ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.5)"}
                   style={{
