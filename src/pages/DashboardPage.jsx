@@ -1,8 +1,108 @@
-// DashboardPage.jsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import DiagramSection from "../components/DiagramSection"; // Import the new component
+import DiagramSection from "../components/DiagramSection";
+import ReactFlow, {
+  ReactFlowProvider,
+  addEdge,
+  Background,
+  Controls,
+  MiniMap,
+  useNodesState,
+  useEdgesState,
+  MarkerType
+} from "reactflow";
+import "reactflow/dist/style.css";
+// Custom node component for better visualization
+const CustomNode = ({ data, selected }) => {
+  return (
+    <div
+      className={`p-3 rounded-lg shadow-md transition-all ${
+        selected ? "ring-2 ring-green-400" : ""
+      }`}
+      style={{
+        background: data.background || "#E6F3FF",
+        color: data.textColor || "#000000",
+        border: data.border || "1px solid #222",
+        width: data.width || "200px",
+      }}
+    >
+      <div className="font-bold text-sm mb-1">{data.label.split('\n')[0]}</div>
+      <div className="text-xs opacity-80">{data.label.split('\n').slice(1).join('\n')}</div>
+      {data.techStack && (
+        <div className="mt-2">
+          <div className="text-xs font-semibold mb-1">Tech Stack:</div>
+          <div className="flex flex-wrap gap-1">
+            {data.techStack.map((tech, index) => (
+              <span
+                key={index}
+                className="text-xs px-2 py-1 rounded bg-white bg-opacity-20"
+              >
+                {tech}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const nodeTypes = {
+  custom: CustomNode,
+};
+
+const CustomEdge = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  markerEnd,
+  data
+}) => {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  return (
+    <>
+      <path
+        id={id}
+        style={style}
+        className="react-flow__edge-path"
+        d={edgePath}
+        markerEnd={markerEnd}
+      />
+      <foreignObject
+        width={200}
+        height={100}
+        x={labelX - 100}
+        y={labelY - 25}
+        requiredExtensions="http://www.w3.org/1999/xhtml"
+      >
+        <div className="edge-label-foreignobject">
+          <div className="edge-label">
+            {data.label}
+          </div>
+        </div>
+      </foreignObject>
+    </>
+  );
+};
+
+const edgeTypes = {
+  custom: CustomEdge,
+};
+
 
 export default function DashboardPage() {
   const [darkMode, setDarkMode] = useState(false);
@@ -10,12 +110,17 @@ export default function DashboardPage() {
   const [username, setUsername] = useState("");
   const navigate = useNavigate();
 
-  // Diagram-specific states (moved some to DiagramSection)
+  // Diagram-specific states
   const [diagram, setDiagram] = useState(null);
   const [selectedElement, setSelectedElement] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
   const diagramContainerRef = useRef(null);
+  
+  // ReactFlow states
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [reactFlowInstance, setReactFlowInstance] = useState(null);
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
@@ -31,26 +136,157 @@ export default function DashboardPage() {
     setDarkMode(prefersDarkMode);
 
     if (!diagram && activeNav === "diagram") {
-      setDiagram({
+      const defaultDiagram = {
         diagram_type: "architecture",
         data: {
           elements: [
-            { id: "frontend_component", type: "component", name: "Frontend", description: "React application", tech_stack: ["React", "Framer Motion"], position: { x: 100, y: 100 }, style: {} },
-            { id: "backend_component", type: "component", name: "Backend", description: "API service", tech_stack: ["Node.js", "Express"], position: { x: 300, y: 100 }, style: {} },
-            { id: "database_component", type: "component", name: "Database", description: "Data storage", tech_stack: ["MongoDB"], position: { x: 200, y: 250 }, style: {} }
-          ],
-          connections: [
-            { source: "frontend_component", target: "backend_component", label: "REST API" },
-            { source: "backend_component", target: "database_component", label: "Queries" }
+            { id: "flask_app", type: "component", name: "Flask Application", description: "Main application handling HTTP requests", tech_stack: ["Python", "Flask"], position: { x: 200, y: 100 } },
+            { id: "web_browser", type: "external_system", name: "Web Browser", description: "User interface", tech_stack: ["HTML", "JavaScript"], position: { x: 50, y: 100 } },
+            { id: "deepfake_model", type: "data_store", name: "Deepfake Model", description: "Detection model", tech_stack: ["TensorFlow"], position: { x: 400, y: 300 } },
+            { id: "connection1", type: "connection", source: "web_browser", target: "flask_app", description: "HTTP requests" }
           ],
           layout: "hierarchical",
           metadata: { version: "1.0" },
           title: "Architecture Diagram",
-          description: "Architecture of the application"
+          description: "System architecture"
         }
-      });
+      };
+      
+      setDiagram(defaultDiagram);
+      updateFlowElements(defaultDiagram);
     }
   }, [navigate, activeNav]);
+
+  useEffect(() => {
+    if (diagram) {
+      updateFlowElements(diagram);
+    }
+  }, [diagram, darkMode]);
+  const [selectedEdge, setSelectedEdge] = useState(null);
+  const edgeUpdateSuccessful = useRef(true);
+
+  const updateFlowElements = (diagramData) => {
+    if (!diagramData || !diagramData.data) return;
+
+    const newNodes = diagramData.data.elements
+      .filter((el) => el.type !== "connection")
+      .map((el) => {
+        let background = darkMode ? "#4B5EAA" : "#E6F3FF";
+        let textColor = darkMode ? "#FFFFFF" : "#000000";
+
+        switch(el.type) {
+          case "component":
+            background = darkMode ? "#2E7D32" : "#C8E6C9";
+            break;
+          case "external_system":
+            background = darkMode ? "#1565C0" : "#BBDEFB";
+            break;
+          case "data_store":
+            background = darkMode ? "#6A1B9A" : "#E1BEE7";
+            break;
+        }
+
+        return {
+          id: el.id,
+          type: "custom",
+          data: { 
+            label: `${el.name || "Unnamed"}\n${el.description || ""}`,
+            techStack: el.tech_stack,
+            background,
+            textColor,
+            border: el.style?.border || "1px solid #222",
+            width: "220px"
+          },
+          position: el.position || { x: 0, y: 0 },
+          style: {
+            borderRadius: "8px",
+          },
+        };
+      });
+
+    const newEdges = diagramData.data.elements
+      .filter((el) => el.type === "connection")
+      .map((el) => ({
+        id: el.id,
+        source: el.source || "",
+        target: el.target || "",
+        type: "smoothstep",
+        animated: true,
+        label: el.description || "",
+        style: {
+          stroke: darkMode ? "#FFFFFF" : "#000000",
+          strokeWidth: 2,
+          strokeDasharray: el.style?.lineStyle === "dashed" ? "5,5" : "none",
+        },
+        labelStyle: {
+          fill: darkMode ? "#FFFFFF" : "#000000",
+          fontSize: "10px",
+        },
+        markerEnd: {
+          type: "arrowclosed",
+          color: darkMode ? "#FFFFFF" : "#000000",
+        },
+      }));
+
+    setNodes(newNodes);
+    setEdges(newEdges);
+  };
+  const onEdgeClick = useCallback((event, edge) => {
+    event.stopPropagation();
+    setSelectedEdge(edge);
+    const newLabel = prompt("Edit connection label:", edge.label);
+    if (newLabel !== null) {
+      setEdges((eds) =>
+        eds.map((e) => {
+          if (e.id === edge.id) {
+            return {
+              ...e,
+              label: newLabel,
+              data: { ...e.data, label: newLabel }
+            };
+          }
+          return e;
+        })
+      );
+    }
+  }, []);
+
+  // Handle edge delete
+  const onEdgeDelete = useCallback((edgeId) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+    setSelectedEdge(null);
+  }, []);
+
+  // Handle connection creation
+  const onConnect = useCallback(
+    (params) => {
+      const newLabel = prompt("Enter connection label:", "");
+      if (newLabel !== null) {
+        setEdges((eds) =>
+          addEdge(
+            {
+              ...params,
+              type: "custom",
+              animated: true,
+              label: newLabel,
+              data: { label: newLabel },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: darkMode ? "#FFFFFF" : "#000000",
+              },
+              style: {
+                stroke: darkMode ? "#FFFFFF" : "#000000",
+                strokeWidth: 2,
+              },
+            },
+            eds
+          )
+        );
+      }
+    },
+    [darkMode]
+  );
+
 
   const toggleTheme = () => setDarkMode(!darkMode);
 
@@ -62,70 +298,71 @@ export default function DashboardPage() {
     navigate("/login");
   };
 
-  const handleDragStart = (element, e) => {
-    setSelectedElement(element);
-    setIsDragging(true);
-    if (diagramContainerRef.current) {
-      const containerRect = diagramContainerRef.current.getBoundingClientRect();
-      const offsetX = e.clientX - containerRect.left - element.position.x;
-      const offsetY = e.clientY - containerRect.top - element.position.y;
-      setDragPosition({ offsetX, offsetY });
-    }
-  };
-
-  const handleDragMove = (e) => {
-    if (isDragging && selectedElement && diagramContainerRef.current) {
-      const containerRect = diagramContainerRef.current.getBoundingClientRect();
-      const newX = e.clientX - containerRect.left - dragPosition.offsetX;
-      const newY = e.clientY - containerRect.top - dragPosition.offsetY;
+  const editElement = (elementId) => {
+    const element = nodes.find(n => n.id === elementId);
+    if (!element) return;
+    
+    const newName = prompt("Edit component name:", element.data.label.split('\n')[0]);
+    if (newName) {
+      const newLabel = `${newName}\n${element.data.label.split('\n').slice(1).join('\n')}`;
       
-      setDiagram(prevDiagram => {
-        const updatedElements = prevDiagram.data.elements.map(el => {
-          if (el.id === selectedElement.id) {
-            return { ...el, position: { x: newX, y: newY } };
-          }
-          return el;
-        });
-        return { ...prevDiagram, data: { ...prevDiagram.data, elements: updatedElements } };
-      });
-    }
-  };
-
-  const handleDragEnd = () => {
-    setIsDragging(false);
-    setSelectedElement(null);
-  };
-
-  const editElement = (element) => {
-    const name = prompt("Edit component name:", element.name);
-    if (name) {
-      setDiagram(prevDiagram => {
-        const updatedElements = prevDiagram.data.elements.map(el => {
-          if (el.id === element.id) {
-            return { ...el, name };
-          }
-          return el;
-        });
-        return { ...prevDiagram, data: { ...prevDiagram.data, elements: updatedElements } };
-      });
+      setNodes(nds => nds.map(node => {
+        if (node.id === elementId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newLabel
+            }
+          };
+        }
+        return node;
+      }));
     }
   };
 
   const addElement = () => {
-    if (!diagram) return;
     const newElement = {
       id: `component_${Math.random().toString(36).substr(2, 9)}`,
       type: "component",
-      name: "New Component",
-      description: "Description for new component",
-      tech_stack: ["Technology"],
       position: { x: 200, y: 200 },
-      style: {}
+      data: {
+        label: "New Component\nDescription",
+        techStack: ["Technology"],
+        background: darkMode ? "#2E7D32" : "#C8E6C9",
+        textColor: darkMode ? "#FFFFFF" : "#000000",
+        width: "220px"
+      }
     };
-    setDiagram(prevDiagram => ({
-      ...prevDiagram,
-      data: { ...prevDiagram.data, elements: [...prevDiagram.data.elements, newElement] }
-    }));
+    
+    setNodes(nds => [...nds, newElement]);
+  };
+
+  const onNodeDragStart = (event, node) => {
+    setSelectedElement(node);
+    setIsDragging(true);
+  };
+
+  const onNodeDrag = (event, node) => {
+    if (isDragging && selectedElement) {
+      setNodes(nds => nds.map(nd => {
+        if (nd.id === node.id) {
+          return {
+            ...nd,
+            position: {
+              x: node.position.x,
+              y: node.position.y
+            }
+          };
+        }
+        return nd;
+      }));
+    }
+  };
+
+  const onNodeDragStop = () => {
+    setIsDragging(false);
+    setSelectedElement(null);
   };
 
   const renderDashboard = () => (
@@ -147,12 +384,11 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-
   const renderDiagram = () => (
     <>
       <DiagramSection darkMode={darkMode} setDiagram={setDiagram} />
-      {diagram && (
-        <div className={`p-6 rounded-xl shadow-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+      {diagram && diagram.diagram_type === "architecture" && (
+        <div className={`p-6 rounded-xl shadow-lg mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold">{diagram.data.title}</h3>
             <div className="flex space-x-2">
@@ -174,97 +410,62 @@ export default function DashboardPage() {
             {diagram.data.description}
           </p>
           
-          <div 
-            ref={diagramContainerRef}
-            className="relative w-full h-96 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg overflow-hidden border border-gray-200"
-            onMouseMove={handleDragMove}
-            onMouseUp={handleDragEnd}
-            onMouseLeave={handleDragEnd}
-          >
-            {diagram.data.elements.map((element) => (
-              <motion.div
-                key={element.id}
-                className={`absolute p-4 rounded-lg shadow-md cursor-move ${
-                  darkMode ? "bg-gray-700" : "bg-white"
-                } ${selectedElement?.id === element.id ? "ring-2 ring-green-500" : ""}`}
-                style={{
-                  left: element.position.x,
-                  top: element.position.y,
-                  width: 180,
-                  zIndex: selectedElement?.id === element.id ? 10 : 1
-                }}
-                onMouseDown={(e) => handleDragStart(element, e)}
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium text-sm">{element.name}</h4>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      editElement(element);
-                    }}
-                    className="text-gray-400 hover:text-blue-500"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                </div>
-                <p className={`text-xs ${darkMode ? "text-gray-300" : "text-gray-500"}`}>
-                  {element.description}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {element.tech_stack.map((tech, i) => (
-                    <span key={i} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-            ))}
             
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
-              {diagram.data.connections?.map((connection, index) => {
-                const source = diagram.data.elements.find(el => el.id === connection.source);
-                const target = diagram.data.elements.find(el => el.id === connection.target);
-                if (!source || !target) return null;
-                const sourceX = source.position.x + 90;
-                const sourceY = source.position.y + 40;
-                const targetX = target.position.x + 90;
-                const targetY = target.position.y + 40;
-                const midX = (sourceX + targetX) / 2;
-                const midY = (sourceY + targetY) / 2;
-                return (
-                  <g key={index}>
-                    <line
-                      x1={sourceX}
-                      y1={sourceY}
-                      x2={targetX}
-                      y2={targetY}
-                      stroke={darkMode ? "#4ADE80" : "#16A34A"}
-                      strokeWidth="2"
-                      strokeDasharray="4"
-                    />
-                    <circle cx={midX} cy={midY} r="8" fill="white" />
-                    <text x={midX} y={midY + 4} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#374151">→</text>
-                    <text x={midX} y={midY - 10} textAnchor="middle" fontSize="12" fill={darkMode ? "#E5E7EB" : "#374151"}>
-                      {connection.label}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
-          
-          <div className="mt-4 flex flex-wrap gap-4">
-            <div className="flex items-center">
-              <div className="w-4 h-0 border border-dashed border-green-500 mr-2"></div>
-              <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Connection</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-white border border-gray-200 rounded mr-2"></div>
-              <span className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Component</span>
-            </div>
+          <div className="h-[600px] w-full rounded-xl overflow-hidden border">
+            <ReactFlowProvider>
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onEdgeClick={onEdgeClick}
+                onEdgeDoubleClick={(event, edge) => onEdgeDelete(edge.id)}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                onNodeClick={(event, node) => editElement(node.id)}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDrag={onNodeDrag}
+                onNodeDragStop={onNodeDragStop}
+                onInit={setReactFlowInstance}
+                fitView
+                style={{ background: darkMode ? "#1F2937" : "#F9FAFB" }}
+                connectionLineStyle={{
+                  stroke: darkMode ? "#FFFFFF" : "#000000",
+                  strokeWidth: 2,
+                }}
+                defaultEdgeOptions={{
+                  type: 'custom',
+                  animated: true,
+                  markerEnd: {
+                    type: MarkerType.ArrowClosed,
+                    color: darkMode ? "#FFFFFF" : "#000000",
+                  },
+                  style: {
+                    stroke: darkMode ? "#FFFFFF" : "#000000",
+                    strokeWidth: 2,
+                  },
+                }}
+              >
+                <Background 
+                  color={darkMode ? "#4B5563" : "#D1D5DB"} 
+                  gap={16} 
+                  variant={darkMode ? "dots" : "lines"}
+                />
+                <Controls 
+                  position="top-right" 
+                  showInteractive={false}
+                  className={`${darkMode ? 'bg-gray-700' : 'bg-white'} p-1 rounded shadow`}
+                />
+                <MiniMap 
+                  nodeColor={(node) => node.data?.background || (darkMode ? "#4B5EAA" : "#E6F3FF")}
+                  maskColor={darkMode ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.5)"}
+                  style={{
+                    backgroundColor: darkMode ? "#374151" : "#F3F4F6",
+                  }}
+                />
+              </ReactFlow>
+            </ReactFlowProvider>
           </div>
         </div>
       )}
