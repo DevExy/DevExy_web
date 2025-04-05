@@ -7,8 +7,49 @@ import ReactFlow, {
   Background,
   Controls,
   MiniMap,
+  useNodesState,
+  useEdgesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
+
+// Custom node component for better visualization
+const CustomNode = ({ data, selected }) => {
+  return (
+    <div
+      className={`p-3 rounded-lg shadow-md transition-all ${
+        selected ? "ring-2 ring-green-400" : ""
+      }`}
+      style={{
+        background: data.background || "#E6F3FF",
+        color: data.textColor || "#000000",
+        border: data.border || "1px solid #222",
+        width: data.width || "200px",
+      }}
+    >
+      <div className="font-bold text-sm mb-1">{data.label.split('\n')[0]}</div>
+      <div className="text-xs opacity-80">{data.label.split('\n').slice(1).join('\n')}</div>
+      {data.techStack && (
+        <div className="mt-2">
+          <div className="text-xs font-semibold mb-1">Tech Stack:</div>
+          <div className="flex flex-wrap gap-1">
+            {data.techStack.map((tech, index) => (
+              <span
+                key={index}
+                className="text-xs px-2 py-1 rounded bg-white bg-opacity-20"
+              >
+                {tech}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const nodeTypes = {
+  custom: CustomNode,
+};
 
 export default function DiagramSection({ darkMode, setDiagram }) {
   const [files, setFiles] = useState([]);
@@ -18,10 +59,13 @@ export default function DiagramSection({ darkMode, setDiagram }) {
   const [extractedFiles, setExtractedFiles] = useState([]);
   const [diagramType, setDiagramType] = useState("");
   const [diagramTypes, setDiagramTypes] = useState([]);
-  const [nodes, setNodes] = useState([]);
-  const [edges, setEdges] = useState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const fileInputRef = useRef(null);
   const [accessToken, setAccessToken] = useState("");
+  const [diagramTitle, setDiagramTitle] = useState("");
+  const [diagramDescription, setDiagramDescription] = useState("");
 
   // Get token from localStorage when component mounts
   useEffect(() => {
@@ -34,7 +78,7 @@ export default function DiagramSection({ darkMode, setDiagram }) {
   // Fetch diagram types on component mount or when accessToken changes
   useEffect(() => {
     const fetchDiagramTypes = async () => {
-      if (!accessToken) return; // Don't fetch if no token
+      if (!accessToken) return;
 
       try {
         const response = await fetch("https://devexy-backend.azurewebsites.net/diagrams/types", {
@@ -46,7 +90,6 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         
         if (!response.ok) {
           if (response.status === 401) {
-            // Token might be expired or invalid
             localStorage.removeItem("access_token");
             localStorage.removeItem("isAuthenticated");
             setError("Session expired. Please login again.");
@@ -80,6 +123,8 @@ export default function DiagramSection({ darkMode, setDiagram }) {
     setExtractedFiles([]);
     setNodes([]);
     setEdges([]);
+    setDiagramTitle("");
+    setDiagramDescription("");
 
     if (selectedFiles.length > 0) {
       const file = selectedFiles[0];
@@ -128,44 +173,125 @@ export default function DiagramSection({ darkMode, setDiagram }) {
     }
   };
 
+  const transformDataToFlowElements = (result) => {
+    if (!result || !result.data) return { nodes: [], edges: [] };
+
+    setDiagramTitle(result.data.title || "Untitled Diagram");
+    setDiagramDescription(result.data.description || "");
+
+    const newNodes = result.data.elements
+      .filter((el) => el.type !== "connection")
+      .map((el) => {
+        let nodeType = "custom";
+        let background = darkMode ? "#4B5EAA" : "#E6F3FF";
+        let textColor = darkMode ? "#FFFFFF" : "#000000";
+
+        // Style nodes differently based on their type
+        switch(el.type) {
+          case "component":
+            background = darkMode ? "#2E7D32" : "#C8E6C9";
+            break;
+          case "external_system":
+            background = darkMode ? "#1565C0" : "#BBDEFB";
+            break;
+          case "data_store":
+            background = darkMode ? "#6A1B9A" : "#E1BEE7";
+            break;
+        }
+
+        return {
+          id: el.id,
+          type: nodeType,
+          data: { 
+            label: `${el.name || "Unnamed"}\n${el.description || ""}`,
+            techStack: el.tech_stack,
+            background,
+            textColor,
+            border: el.style?.border || "1px solid #222",
+            width: "220px"
+          },
+          position: {
+            x: el.position?.x ?? 0,
+            y: el.position?.y ?? 0,
+          },
+          style: {
+            borderRadius: "8px",
+          },
+        };
+      });
+
+    const newEdges = result.data.elements
+      .filter((el) => el.type === "connection")
+      .map((el) => ({
+        id: el.id,
+        source: el.source || "",
+        target: el.target || "",
+        type: "smoothstep",
+        animated: true,
+        label: el.description || "",
+        style: {
+          stroke: darkMode ? "#FFFFFF" : "#000000",
+          strokeWidth: 2,
+          strokeDasharray: el.style?.lineStyle === "dash" ? "5,5" : "none",
+        },
+        labelStyle: {
+          fill: darkMode ? "#FFFFFF" : "#000000",
+          fontSize: "10px",
+        },
+        markerEnd: {
+          type: "arrowclosed",
+          color: darkMode ? "#FFFFFF" : "#000000",
+        },
+      }));
+
+    return { nodes: newNodes, edges: newEdges };
+  };
+
   const handleGenerate = async () => {
     if (!accessToken) {
       setError("Authentication required. Please login first.");
       return;
     }
-
+  
     if (!diagramType) {
       setError("Please select a diagram type");
       return;
     }
-
+  
     if (extractedFiles.length === 0) {
       setError("Please extract files first");
       return;
     }
-
+  
     try {
       setIsUploading(true);
-
-      // First, create a FormData object for the file upload
-      const formData = new FormData();
-      formData.append("file", files[0]);
-      formData.append("diagram_type", diagramType);
-
+  
+      // Prepare the files array similar to the curl request
+      const filesPayload = extractedFiles.map(file => ({
+        content: file.content,
+        filepath: file.path
+      }));
+  
+      // Create the request body
+      const requestBody = {
+        files: filesPayload,
+        diagram_type: diagramType,
+        description: "Generate diagram based on the provided files"
+      };
+  
       // Send the request with authorization header
       const response = await fetch("https://devexy-backend.azurewebsites.net/diagrams/generate", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          "Authorization": `Bearer ${accessToken}`,
+          "accept": "application/json",
+          "Content-Type": "application/json",
         },
-        body: formData,
+        body: JSON.stringify(requestBody),
       });
-
-      console.log(body);
-
+  
       if (!response.ok) {
         if (response.status === 401) {
-          // Token might be expired or invalid
           localStorage.removeItem("access_token");
           localStorage.removeItem("isAuthenticated");
           setError("Session expired. Please login again.");
@@ -173,50 +299,23 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         }
         throw new Error(await response.text());
       }
-
+  
       const result = await response.json();
-
-      // Update the parent component with the diagram data
       setDiagram(result);
-
-      // Transform response into ReactFlow nodes and edges with safety checks
-      const newNodes = result.data.elements
-        .filter((el) => el.type !== "connection")
-        .map((el) => ({
-          id: el.id,
-          type: "default",
-          data: { label: `${el.name || "Unnamed"}\n${el.description || ""}` },
-          position: {
-            x: el.position?.x ?? 0,
-            y: el.position?.y ?? 0,
-          },
-          style: {
-            background: darkMode ? "#4B5EAA" : "#E6F3FF",
-            color: darkMode ? "#FFFFFF" : "#000000",
-            border: el.style?.border || "1px solid #222",
-            borderRadius: "5px",
-            padding: "10px",
-            width: 200,
-          },
-        }));
-
-      const newEdges = result.data.elements
-        .filter((el) => el.type === "connection")
-        .map((el) => ({
-          id: el.id,
-          source: el.source || "",
-          target: el.target || "",
-          type: "smoothstep",
-          animated: true,
-          style: {
-            stroke: darkMode ? "#FFFFFF" : "#000000",
-            strokeDasharray: el.style?.lineStyle === "dash" ? "5,5" : "none",
-          },
-        }));
-
-      setNodes(newNodes);
-      setEdges(newEdges);
+  
+      // Transform the API response into ReactFlow elements
+      const { nodes: flowNodes, edges: flowEdges } = transformDataToFlowElements(result);
+      
+      setNodes(flowNodes);
+      setEdges(flowEdges);
       setError(null);
+  
+      // Fit view after a small delay to allow nodes to render
+      setTimeout(() => {
+        if (reactFlowInstance) {
+          reactFlowInstance.fitView({ padding: 0.5 });
+        }
+      }, 100);
     } catch (err) {
       console.error("Error generating diagram:", err);
       setError(err.message || "Failed to generate diagram. Please try again.");
@@ -224,27 +323,14 @@ export default function DiagramSection({ darkMode, setDiagram }) {
       setIsUploading(false);
     }
   };
-
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, type: "smoothstep", animated: true }, eds)),
     [setEdges]
   );
 
-  const onNodesChange = useCallback(
-    (changes) => {
-      setNodes((nds) =>
-        changes.reduce((acc, change) => {
-          if (change.type === "position" && change.dragging) {
-            return acc.map((node) =>
-              node.id === change.id ? { ...node, position: { x: change.x, y: change.y } } : node
-            );
-          }
-          return acc;
-        }, [...nds])
-      );
-    },
-    [setNodes]
-  );
+  const onInit = (rfi) => {
+    setReactFlowInstance(rfi);
+  };
 
   return (
     <div className="p-6">
@@ -408,24 +494,57 @@ export default function DiagramSection({ darkMode, setDiagram }) {
         </div>
       </div>
 
-      {nodes.length > 0 && (
-        <div className="h-[600px] w-full rounded-xl shadow-lg overflow-hidden">
-          <ReactFlowProvider>
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onConnect={onConnect}
-              fitView
-              nodesDraggable
-              nodesConnectable
-              style={{ background: darkMode ? "#1F2937" : "#F9FAFB" }}
-            >
-              <Background color={darkMode ? "#4B5563" : "#D1D5DB"} gap={16} />
-              <Controls />
-              <MiniMap nodeColor={(node) => (darkMode ? "#4B5EAA" : "#E6F3FF")} />
-            </ReactFlow>
-          </ReactFlowProvider>
+      {(nodes.length > 0 || edges.length > 0) && (
+        <div className={`p-6 rounded-xl shadow-lg mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+          <div className="mb-4">
+            <h3 className={`text-xl font-semibold ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+              {diagramTitle}
+            </h3>
+            {diagramDescription && (
+              <p className={`mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                {diagramDescription}
+              </p>
+            )}
+          </div>
+          
+          <div className="h-[600px] w-full rounded-xl overflow-hidden border">
+            <ReactFlowProvider>
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onInit={onInit}
+                fitView
+                nodesDraggable
+                nodeTypes={nodeTypes}
+                style={{ background: darkMode ? "#1F2937" : "#F9FAFB" }}
+                defaultEdgeOptions={{
+                  type: 'smoothstep',
+                  animated: true,
+                }}
+              >
+                <Background 
+                  color={darkMode ? "#4B5563" : "#D1D5DB"} 
+                  gap={16} 
+                  variant={darkMode ? "dots" : "lines"}
+                />
+                <Controls 
+                  position="top-right" 
+                  showInteractive={false}
+                  className={`${darkMode ? 'bg-gray-700' : 'bg-white'} p-1 rounded shadow`}
+                />
+                <MiniMap 
+                  nodeColor={(node) => node.data?.background || (darkMode ? "#4B5EAA" : "#E6F3FF")}
+                  maskColor={darkMode ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.5)"}
+                  style={{
+                    backgroundColor: darkMode ? "#374151" : "#F3F4F6",
+                  }}
+                />
+              </ReactFlow>
+            </ReactFlowProvider>
+          </div>
         </div>
       )}
     </div>
