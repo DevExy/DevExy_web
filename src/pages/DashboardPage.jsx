@@ -10,10 +10,13 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
-  MarkerType
+  MarkerType,
+  Handle,
+  getBezierPath
 } from "reactflow";
 import "reactflow/dist/style.css";
-// Custom node component for better visualization
+
+// Update the CustomNode component to include proper handles
 const CustomNode = ({ data, selected }) => {
   return (
     <div
@@ -27,6 +30,22 @@ const CustomNode = ({ data, selected }) => {
         width: data.width || "200px",
       }}
     >
+      {/* Source handle at the top */}
+      <Handle
+        type="source"
+        position="top"
+        id="top"
+        style={{ background: '#555', width: 10, height: 10 }}
+      />
+      
+      {/* Source handle at the right */}
+      <Handle
+        type="source"
+        position="right"
+        id="right"
+        style={{ background: '#555', width: 10, height: 10 }}
+      />
+      
       <div className="font-bold text-sm mb-1">{data.label.split('\n')[0]}</div>
       <div className="text-xs opacity-80">{data.label.split('\n').slice(1).join('\n')}</div>
       {data.techStack && (
@@ -44,6 +63,22 @@ const CustomNode = ({ data, selected }) => {
           </div>
         </div>
       )}
+      
+      {/* Target handle at the bottom */}
+      <Handle
+        type="target"
+        position="bottom"
+        id="bottom"
+        style={{ background: '#555', width: 10, height: 10 }}
+      />
+      
+      {/* Target handle at the left */}
+      <Handle
+        type="target"
+        position="left"
+        id="left"
+        style={{ background: '#555', width: 10, height: 10 }}
+      />
     </div>
   );
 };
@@ -62,16 +97,12 @@ const CustomEdge = ({
   targetPosition,
   style = {},
   markerEnd,
-  data
+  data,
+  label
 }) => {
-  const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
+  const edgePath = `M${sourceX},${sourceY} C${sourceX + (targetX - sourceX) / 2},${sourceY} ${sourceX + (targetX - sourceX) / 2},${targetY} ${targetX},${targetY}`;
+  const labelX = sourceX + (targetX - sourceX) / 2;
+  const labelY = sourceY + (targetY - sourceY) / 2;
 
   return (
     <>
@@ -82,19 +113,21 @@ const CustomEdge = ({
         d={edgePath}
         markerEnd={markerEnd}
       />
-      <foreignObject
-        width={200}
-        height={100}
-        x={labelX - 100}
-        y={labelY - 25}
-        requiredExtensions="http://www.w3.org/1999/xhtml"
-      >
-        <div className="edge-label-foreignobject">
-          <div className="edge-label">
-            {data.label}
+      {label && (
+        <foreignObject
+          width={100}
+          height={40}
+          x={labelX - 50}
+          y={labelY - 20}
+          requiredExtensions="http://www.w3.org/1999/xhtml"
+        >
+          <div className="edge-label-foreignobject">
+            <div className="edge-label bg-white bg-opacity-70 px-2 py-1 rounded text-xs text-center">
+              {label}
+            </div>
           </div>
-        </div>
-      </foreignObject>
+        </foreignObject>
+      )}
     </>
   );
 };
@@ -102,7 +135,6 @@ const CustomEdge = ({
 const edgeTypes = {
   custom: CustomEdge,
 };
-
 
 export default function DashboardPage() {
   const [darkMode, setDarkMode] = useState(false);
@@ -140,15 +172,22 @@ export default function DashboardPage() {
         diagram_type: "architecture",
         data: {
           elements: [
-            { id: "flask_app", type: "component", name: "Flask Application", description: "Main application handling HTTP requests", tech_stack: ["Python", "Flask"], position: { x: 200, y: 100 } },
-            { id: "web_browser", type: "external_system", name: "Web Browser", description: "User interface", tech_stack: ["HTML", "JavaScript"], position: { x: 50, y: 100 } },
-            { id: "deepfake_model", type: "data_store", name: "Deepfake Model", description: "Detection model", tech_stack: ["TensorFlow"], position: { x: 400, y: 300 } },
-            { id: "connection1", type: "connection", source: "web_browser", target: "flask_app", description: "HTTP requests" }
+            { id: "web_browser", type: "external_system", name: "Web Browser", description: "User interface for interacting with the application", tech_stack: ["HTML", "JavaScript"], position: { x: 50, y: 100 } },
+            { id: "flask_app", type: "component", name: "Flask Application", description: "Main application handling web requests and orchestration", tech_stack: ["Python", "Flask", "cv2", "TensorFlow/Keras", "numpy"], position: { x: 350, y: 200 } },
+            { id: "file_system", type: "data_store", name: "File System", description: "Storage for uploaded videos and the deepfake detection model", tech_stack: ["OS"], position: { x: 650, y: 100 } },
+            { id: "haar_cascade", type: "component", name: "Haarcascade Classifier", description: "OpenCV face detection model", tech_stack: ["cv2"], position: { x: 150, y: 350 } },
+            { id: "deepfake_model", type: "component", name: "Deepfake Detection Model", description: "TensorFlow/Keras model for detecting deepfakes in video frames", tech_stack: ["TensorFlow", "Keras", "HDF5"], position: { x: 550, y: 350 } },
+            { id: "system_resources", type: "component", name: "System Resources", description: "System CPU, RAM, GPU", tech_stack: ["psuutil", "GPUtil"], position: { x: 350, y: 450 } },
+            { id: "conn_web_flask", type: "connection", source: "web_browser", target: "flask_app", description: "HTTP requests" },
+            { id: "conn_flask_file", type: "connection", source: "flask_app", target: "file_system", description: "File I/O" },
+            { id: "conn_flask_haar", type: "connection", source: "flask_app", target: "haar_cascade", description: "Face detection" },
+            { id: "conn_flask_deepfake", type: "connection", source: "flask_app", target: "deepfake_model", description: "Deepfake analysis" },
+            { id: "conn_system_flask", type: "connection", source: "system_resources", target: "flask_app", description: "Resource monitoring" }
           ],
           layout: "hierarchical",
           metadata: { version: "1.0" },
-          title: "Architecture Diagram",
-          description: "System architecture"
+          title: "Deepfake Detection System Architecture",
+          description: "System architecture diagram showing the components and connections of the deepfake detection application"
         }
       };
       
@@ -162,55 +201,97 @@ export default function DashboardPage() {
       updateFlowElements(diagram);
     }
   }, [diagram, darkMode]);
+  
   const [selectedEdge, setSelectedEdge] = useState(null);
   const edgeUpdateSuccessful = useRef(true);
 
-  const updateFlowElements = (diagramData) => {
-    if (!diagramData || !diagramData.data) return;
+  // Update the edge creation function in your updateFlowElements function
+const updateFlowElements = (diagramData) => {
+  if (!diagramData || !diagramData.data) return;
 
-    const newNodes = diagramData.data.elements
-      .filter((el) => el.type !== "connection")
-      .map((el) => {
-        let background = darkMode ? "#4B5EAA" : "#E6F3FF";
-        let textColor = darkMode ? "#FFFFFF" : "#000000";
+  const newNodes = diagramData.data.elements
+    .filter((el) => el.type !== "connection")
+    .map((el) => {
+      let background = darkMode ? "#4B5EAA" : "#E6F3FF";
+      let textColor = darkMode ? "#FFFFFF" : "#000000";
 
-        switch(el.type) {
-          case "component":
-            background = darkMode ? "#2E7D32" : "#C8E6C9";
-            break;
-          case "external_system":
-            background = darkMode ? "#1565C0" : "#BBDEFB";
-            break;
-          case "data_store":
-            background = darkMode ? "#6A1B9A" : "#E1BEE7";
-            break;
-        }
+      switch(el.type) {
+        case "component":
+          background = darkMode ? "#2E7D32" : "#C8E6C9";
+          break;
+        case "external_system":
+          background = darkMode ? "#1565C0" : "#BBDEFB";
+          break;
+        case "data_store":
+          background = darkMode ? "#6A1B9A" : "#E1BEE7";
+          break;
+      }
 
-        return {
-          id: el.id,
-          type: "custom",
-          data: { 
-            label: `${el.name || "Unnamed"}\n${el.description || ""}`,
-            techStack: el.tech_stack,
-            background,
-            textColor,
-            border: el.style?.border || "1px solid #222",
-            width: "220px"
-          },
-          position: el.position || { x: 0, y: 0 },
-          style: {
-            borderRadius: "8px",
-          },
-        };
-      });
-
-    const newEdges = diagramData.data.elements
-      .filter((el) => el.type === "connection")
-      .map((el) => ({
+      return {
         id: el.id,
-        source: el.source || "",
-        target: el.target || "",
-        type: "smoothstep",
+        type: "custom",
+        data: { 
+          label: `${el.name || "Unnamed"}\n${el.description || ""}`,
+          techStack: el.tech_stack,
+          background,
+          textColor,
+          border: el.style?.border || "1px solid #222",
+          width: "220px"
+        },
+        position: el.position || { x: 0, y: 0 },
+        style: {
+          borderRadius: "8px",
+        },
+      };
+    });
+
+  // Get positions for all nodes to determine best connection points
+  const nodePositions = {};
+  newNodes.forEach(node => {
+    nodePositions[node.id] = node.position;
+  });
+
+  // Determine appropriate handles based on relative positions
+  const getHandles = (source, target) => {
+    const sourcePos = nodePositions[source];
+    const targetPos = nodePositions[target];
+    
+    if (!sourcePos || !targetPos) {
+      return { sourceHandle: "right", targetHandle: "left" }; // Default
+    }
+    
+    // Calculate position differences
+    const dx = targetPos.x - sourcePos.x;
+    const dy = targetPos.y - sourcePos.y;
+    
+    // Determine if connection is more horizontal or vertical
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // More horizontal
+      return {
+        sourceHandle: dx > 0 ? "right" : "left",
+        targetHandle: dx > 0 ? "left" : "right"
+      };
+    } else {
+      // More vertical
+      return {
+        sourceHandle: dy > 0 ? "bottom" : "top",
+        targetHandle: dy > 0 ? "top" : "bottom"
+      };
+    }
+  };
+
+  const newEdges = diagramData.data.elements
+    .filter((el) => el.type === "connection")
+    .map((el) => {
+      const { sourceHandle, targetHandle } = getHandles(el.source, el.target);
+      
+      return {
+        id: el.id || `edge_${el.source}_${el.target}`,
+        source: el.source,
+        target: el.target,
+        sourceHandle, // Make sure these are explicitly set
+        targetHandle,
+        type: "custom",
         animated: true,
         label: el.description || "",
         style: {
@@ -218,19 +299,17 @@ export default function DashboardPage() {
           strokeWidth: 2,
           strokeDasharray: el.style?.lineStyle === "dashed" ? "5,5" : "none",
         },
-        labelStyle: {
-          fill: darkMode ? "#FFFFFF" : "#000000",
-          fontSize: "10px",
-        },
         markerEnd: {
-          type: "arrowclosed",
+          type: MarkerType.ArrowClosed,
           color: darkMode ? "#FFFFFF" : "#000000",
         },
-      }));
+      };
+    });
 
-    setNodes(newNodes);
-    setEdges(newEdges);
-  };
+  setNodes(newNodes);
+  setEdges(newEdges);
+};
+  
   const onEdgeClick = useCallback((event, edge) => {
     event.stopPropagation();
     setSelectedEdge(edge);
@@ -241,8 +320,7 @@ export default function DashboardPage() {
           if (e.id === edge.id) {
             return {
               ...e,
-              label: newLabel,
-              data: { ...e.data, label: newLabel }
+              label: newLabel
             };
           }
           return e;
@@ -262,31 +340,46 @@ export default function DashboardPage() {
     (params) => {
       const newLabel = prompt("Enter connection label:", "");
       if (newLabel !== null) {
-        setEdges((eds) =>
-          addEdge(
-            {
-              ...params,
-              type: "custom",
-              animated: true,
-              label: newLabel,
-              data: { label: newLabel },
-              markerEnd: {
-                type: MarkerType.ArrowClosed,
-                color: darkMode ? "#FFFFFF" : "#000000",
-              },
-              style: {
-                stroke: darkMode ? "#FFFFFF" : "#000000",
-                strokeWidth: 2,
-              },
-            },
-            eds
-          )
-        );
+        const newEdge = {
+          ...params,
+          type: "custom",
+          animated: true,
+          label: newLabel,
+          id: `edge_${params.source}_${params.target}_${Math.random().toString(36).substr(2, 9)}`,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: darkMode ? "#FFFFFF" : "#000000",
+          },
+          style: {
+            stroke: darkMode ? "#FFFFFF" : "#000000",
+            strokeWidth: 2,
+          },
+        };
+        
+        // Ensure the connection has both source and target handles specified
+        if (!newEdge.sourceHandle || !newEdge.targetHandle) {
+          const sourceNode = nodes.find(n => n.id === newEdge.source);
+          const targetNode = nodes.find(n => n.id === newEdge.target);
+          
+          if (sourceNode && targetNode) {
+            const dx = targetNode.position.x - sourceNode.position.x;
+            const dy = targetNode.position.y - sourceNode.position.y;
+            
+            if (Math.abs(dx) > Math.abs(dy)) {
+              newEdge.sourceHandle = dx > 0 ? "right" : "left";
+              newEdge.targetHandle = dx > 0 ? "left" : "right";
+            } else {
+              newEdge.sourceHandle = dy > 0 ? "bottom" : "top";
+              newEdge.targetHandle = dy > 0 ? "top" : "bottom";
+            }
+          }
+        }
+        
+        setEdges(eds => addEdge(newEdge, eds));
       }
     },
-    [darkMode]
+    [darkMode, setEdges, nodes]
   );
-
 
   const toggleTheme = () => setDarkMode(!darkMode);
 
@@ -324,7 +417,7 @@ export default function DashboardPage() {
   const addElement = () => {
     const newElement = {
       id: `component_${Math.random().toString(36).substr(2, 9)}`,
-      type: "component",
+      type: "custom",
       position: { x: 200, y: 200 },
       data: {
         label: "New Component\nDescription",
@@ -384,6 +477,7 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+  
   const renderDiagram = () => (
     <>
       <DiagramSection darkMode={darkMode} setDiagram={setDiagram} />
@@ -410,7 +504,6 @@ export default function DashboardPage() {
             {diagram.data.description}
           </p>
           
-            
           <div className="h-[600px] w-full rounded-xl overflow-hidden border">
             <ReactFlowProvider>
               <ReactFlow
