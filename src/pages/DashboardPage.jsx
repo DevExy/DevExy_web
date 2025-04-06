@@ -430,7 +430,7 @@ export default function DashboardPage() {
             <img 
               src="/logo.png" 
               alt="DevExy Logo" 
-              className="w-10 h-10 rounded-xl"
+              className="w-7 h-7 rounded-xl"
             />
             <span className={`ml-2 text-xl font-medium ${darkMode ? "text-green-400" : "text-green-600"}`}>DevExy</span>
           </motion.div>
