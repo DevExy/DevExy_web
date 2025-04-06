@@ -247,41 +247,93 @@ const LandingPage = () => {
           </motion.div>
         </motion.div>
 
-        {/* Enhanced Code Panel */}
-        <motion.div
-          className="hidden lg:block absolute right-16 top-30 z-10 mr-20" 
-          initial={{ opacity: 0, x: 100 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 1, duration: 1 }}
-        >
-          <div className="w-[576px] h-[432px] rounded-lg bg-black border border-green-400/30 p-6 font-mono text-md text-green-400 shadow-lg overflow-hidden">
-            <div className="flex items-center mb-4 space-x-1">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <div className="w-3 h-3 rounded-full bg-yellow-400/70"></div>
-              <div className="w-3 h-3 rounded-full bg-green-400/40"></div>
-            </div>
-            <motion.div
-              className="relative"
-              initial={{ y: 0 }}
-              animate={{ y: -120 }} // Adjusted for larger height and content
-              transition={{ duration: 20, repeat: Infinity, repeatType: "loop" }}
-            >
-              <p><span className="text-green-300">import</span> DevExy <span className="text-green-300">from</span> <span className="text-green-500">'devExy'</span>;</p>
-              <p> </p>
-              <p><span className="text-green-300">const</span> test = <span className="text-green-300">new</span> DevExy.<span className="text-green-500">Test</span>();</p>
-              <p> </p>
-              <p><span className="text-green-300">async function</span> <span className="text-green-500">runTests</span>() {`{`}</p>
-              <p>  <span className="text-green-300">await</span> test.configure();</p>
-              <p>  <span className="text-green-300">const</span> results = <span className="text-green-300">await</span> test.run();</p>
-              <p>  <span className="text-green-300">return</span> results.optimize();</p>
-              <p>{`}`}</p>
-              <p> </p>
-              <p>runTests().then(<span className="text-green-500">console</span>.log);</p>
-              <p> </p>
-              <p><span className="text-gray-400">// Output: Optimized execution!</span></p>
-            </motion.div>
+      {/* Enhanced Code Panel with VS Code-like Syntax Highlighting */}
+      <motion.div
+        className="hidden lg:block absolute right-16 top-30 z-10 mr-20" 
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 1, duration: 1 }}
+      >
+        <div className="w-[576px] h-[432px] rounded-lg bg-[#1e1e1e] border border-green-400/30 p-6 font-mono text-md shadow-lg overflow-hidden">
+          <div className="flex items-center mb-4 space-x-1">
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <div className="w-3 h-3 rounded-full bg-yellow-400/70"></div>
+            <div className="w-3 h-3 rounded-full bg-green-400/40"></div>
           </div>
-        </motion.div>
+          <motion.div
+            className="relative"
+            initial={{ y: 0 }}
+            animate={{ y: -120 }}
+            transition={{ duration: 20, repeat: Infinity, repeatType: "loop" }}
+          >
+            <p>
+              <span className="text-[#569cd6]">import</span>
+              <span className="text-white"> DevExy </span>
+              <span className="text-[#569cd6]">from</span>
+              <span className="text-[#ce9178]"> 'devExy'</span>
+              <span className="text-white">;</span>
+            </p>
+            <p className="h-4"></p>
+            <p>
+              <span className="text-[#569cd6]">const</span>
+              <span className="text-[#4fc1ff]"> test </span>
+              <span className="text-white">= </span>
+              <span className="text-[#569cd6]">new</span>
+              <span className="text-white"> DevExy.</span>
+              <span className="text-[#4ec9b0]">Test</span>
+              <span className="text-white">();</span>
+            </p>
+            <p className="h-4"></p>
+            <p>
+              <span className="text-[#569cd6]">async function</span>
+              <span className="text-[#dcdcaa]"> runTests</span>
+              <span className="text-white">() {`{`}</span>
+            </p>
+            <p>
+              <span className="text-white">  </span>
+              <span className="text-[#569cd6]">await</span>
+              <span className="text-white"> test.</span>
+              <span className="text-[#dcdcaa]">configure</span>
+              <span className="text-white">();</span>
+            </p>
+            <p>
+              <span className="text-white">  </span>
+              <span className="text-[#569cd6]">const</span>
+              <span className="text-[#4fc1ff]"> results </span>
+              <span className="text-white">= </span>
+              <span className="text-[#569cd6]">await</span>
+              <span className="text-white"> test.</span>
+              <span className="text-[#dcdcaa]">run</span>
+              <span className="text-white">();</span>
+            </p>
+            <p>
+              <span className="text-white">  </span>
+              <span className="text-[#569cd6]">return</span>
+              <span className="text-white"> results.</span>
+              <span className="text-[#dcdcaa]">optimize</span>
+              <span className="text-white">();</span>
+            </p>
+            <p>
+              <span className="text-white">{`}`}</span>
+            </p>
+            <p className="h-4"></p>
+            <p>
+              <span className="text-[#dcdcaa]">runTests</span>
+              <span className="text-white">().</span>
+              <span className="text-[#dcdcaa]">then</span>
+              <span className="text-white">(</span>
+              <span className="text-[#4ec9b0]">console</span>
+              <span className="text-white">.</span>
+              <span className="text-[#dcdcaa]">log</span>
+              <span className="text-white">);</span>
+            </p>
+            <p className="h-4"></p>
+            <p>
+              <span className="text-[#6a9955]"></span>
+            </p>
+          </motion.div>
+        </div>
+      </motion.div>
       </div>
 
       {/* Features Section */}
