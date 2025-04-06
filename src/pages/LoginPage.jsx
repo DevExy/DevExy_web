@@ -85,8 +85,8 @@ export default function LoginPage() {
       </div>
 
       <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="absolute top-8 left-8 flex items-center cursor-pointer" onClick={() => navigate("/")}>
-        <img src="/logo.png" alt="Devexy Logo" className="h-6 w-auto" />
-        <span className={`m-1 text-xl font-light ${darkMode ? "text-green-400" : "text-green-500"}`}>Devexy</span>
+        <img src="/logo.png" alt="DevExy Logo" className="h-6 w-auto" />
+        <span className={`m-1 text-xl font-light ${darkMode ? "text-green-400" : "text-green-500"}`}>DevExy</span>
       </motion.div>
 
       <motion.button
@@ -123,7 +123,7 @@ export default function LoginPage() {
         <div className="p-10">
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
             <div className="flex justify-center mb-6">
-              <img src="/logo.png" alt="Devexy Logo" className="h-10 w-auto" />
+              <img src="/logo.png" alt="DevExy Logo" className="h-10 w-auto" />
             </div>
             <h2 className="text-3xl font-bold text-center mb-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-green-600">Welcome back</span>
