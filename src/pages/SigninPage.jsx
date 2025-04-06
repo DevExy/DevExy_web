@@ -113,7 +113,7 @@ export default function RegisterPage() {
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
-        className="w-full max-w-md relative z-10 bg-zinc-900 text-white rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full max-w-md relative z-10 bg-gray-900 text-white rounded-2xl shadow-2xl overflow-hidden"
       >
         <div className="h-2 w-full bg-gradient-to-r from-green-400 to-green-600" />
         <div className="p-10">

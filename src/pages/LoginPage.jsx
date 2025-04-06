@@ -71,12 +71,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`w-full min-h-screen flex items-center justify-center p-6 ${darkMode ? "bg-gray-900" : "bg-gradient-to-br from-gray-50 to-green-50"} transition-colors duration-300`}>
+    <div className={`w-full min-h-screen flex items-center justify-center p-6 ${darkMode ? "bg-black" : "bg-gradient-to-br from-black to-gray-900"} transition-colors duration-300`}>
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
-            className={`absolute rounded-full ${darkMode ? "bg-green-500" : "bg-green-300"} opacity-20`}
+            className={`absolute rounded-full ${darkMode ? "bg-green-500" : "bg-green-400"} opacity-20`}
             style={{ width: Math.random() * 8 + 4, height: Math.random() * 8 + 4, left: `${Math.random() * 100}vw`, top: `${Math.random() * 100}vh` }}
             animate={{ y: [0, -Math.random() * 100 - 50], x: [0, (Math.random() - 0.5) * 50], opacity: [0.2, 0] }}
             transition={{ duration: Math.random() * 10 + 10, repeat: Infinity, repeatType: "loop" }}
@@ -86,7 +86,7 @@ export default function LoginPage() {
 
       <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="absolute top-8 left-8 flex items-center cursor-pointer" onClick={() => navigate("/")}>
         <img src="/logo.png" alt="Devexy Logo" className="h-6 w-auto" />
-        <span className={`m-1 text-xl font-light ${darkMode ? "text-green-400" : "text-green-600"}`}>Devexy</span>
+        <span className={`m-1 text-xl font-light ${darkMode ? "text-green-400" : "text-green-500"}`}>Devexy</span>
       </motion.div>
 
       <motion.button
@@ -96,7 +96,7 @@ export default function LoginPage() {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={toggleTheme}
-        className={`absolute top-8 right-8 p-2 rounded-full ${darkMode ? "bg-gray-800 text-yellow-300" : "bg-white text-gray-700"} shadow-lg z-10`}
+        className={`absolute top-8 right-8 p-2 rounded-full ${darkMode ? "bg-gray-900 text-green-400" : "bg-black text-green-500"} shadow-lg z-10`}
       >
         {darkMode ? (
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
@@ -117,7 +117,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
-        className={`w-full max-w-md relative z-10 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"} rounded-2xl shadow-2xl overflow-hidden`}
+        className={`w-full max-w-md relative z-10 ${darkMode ? "bg-gray-900 text-white" : "bg-black text-white"} rounded-2xl shadow-2xl overflow-hidden`}
       >
         <div className="h-2 w-full bg-gradient-to-r from-green-400 to-green-600" />
         <div className="p-10">
@@ -128,7 +128,7 @@ export default function LoginPage() {
             <h2 className="text-3xl font-bold text-center mb-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-green-600">Welcome back</span>
             </h2>
-            <p className={`text-center mb-8 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>Sign in to your DevExy account</p>
+            <p className={`text-center mb-8 ${darkMode ? "text-gray-300" : "text-gray-300"}`}>Sign in to your DevExy account</p>
           </motion.div>
 
           {error && (
@@ -144,24 +144,24 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.5 }}>
-              <label className={`block ${darkMode ? "text-gray-200" : "text-gray-700"} font-medium mb-2`}>Username</label>
+              <label className={`block ${darkMode ? "text-gray-200" : "text-gray-200"} font-medium mb-2`}>Username</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className={`w-full pl-3 pr-4 py-2 ${darkMode ? "bg-gray-700 border-gray-600 text-white focus:ring-green-500" : "bg-gray-50 border-gray-300 text-gray-900 focus:ring-green-500"} rounded-lg border focus:outline-none focus:ring-2 transition-colors duration-200`}
+                className={`w-full pl-3 pr-4 py-2 ${darkMode ? "bg-gray-800 border-gray-700 text-white focus:ring-green-500" : "bg-gray-800 border-gray-700 text-white focus:ring-green-500"} rounded-lg border focus:outline-none focus:ring-2 transition-colors duration-200`}
                 placeholder="Enter your username"
                 required
               />
             </motion.div>
 
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.6 }}>
-              <label className={`block ${darkMode ? "text-gray-200" : "text-gray-700"} font-medium mb-2`}>Password</label>
+              <label className={`block ${darkMode ? "text-gray-200" : "text-gray-200"} font-medium mb-2`}>Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full pl-3 pr-4 py-2 ${darkMode ? "bg-gray-700 border-gray-600 text-white focus:ring-green-500" : "bg-gray-50 border-gray-300 text-gray-900 focus:ring-green-500"} rounded-lg border focus:outline-none focus:ring-2 transition-colors duration-200`}
+                className={`w-full pl-3 pr-4 py-2 ${darkMode ? "bg-gray-800 border-gray-700 text-white focus:ring-green-500" : "bg-gray-800 border-gray-700 text-white focus:ring-green-500"} rounded-lg border focus:outline-none focus:ring-2 transition-colors duration-200`}
                 placeholder="Enter your password"
                 required
               />
@@ -171,7 +171,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full py-3 rounded-lg font-medium ${isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"} text-white transition-all duration-300 shadow-lg`}
+                className={`w-full py-3 rounded-lg font-medium ${isLoading ? "bg-gray-600 cursor-not-allowed" : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"} text-white transition-all duration-300 shadow-lg`}
               >
                 {isLoading ? "Loading..." : "Sign in"}
               </button>
@@ -184,12 +184,12 @@ export default function LoginPage() {
   transition={{ duration: 0.5, delay: 0.8 }} 
   className="mt-8 text-center"
 >
-  <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+  <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-400"}`}>
     Don't have an account?{" "}
     <motion.a 
       whileHover={{ scale: 1.05 }} 
-      onClick={handleSignUp} // Using dedicated handler
-      className="text-green-500 hover:text-green-600 font-medium transition-colors duration-200"
+      onClick={handleSignUp}
+      className="text-green-500 hover:text-green-400 font-medium transition-colors duration-200"
     >
       Sign up now
     </motion.a>
@@ -199,8 +199,8 @@ export default function LoginPage() {
  
       </motion.div>
    
-      <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.7, scale: 1 }} transition={{ duration: 0.8, delay: 1.2 }} className="fixed bottom-0 left-0 w-64 h-64 bg-gradient-to-r from-green-300 to-green-400 rounded-full -mb-32 -ml-32 blur-2xl opacity-20 z-0" />
-      <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.7, scale: 1 }} transition={{ duration: 0.8, delay: 1.3 }} className="fixed top-0 right-0 w-80 h-80 bg-gradient-to-l from-green-300 to-green-400 rounded-full -mt-40 -mr-40 blur-2xl opacity-20 z-0" />
+      <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.7, scale: 1 }} transition={{ duration: 0.8, delay: 1.2 }} className="fixed bottom-0 left-0 w-64 h-64 bg-gradient-to-r from-green-500 to-green-600 rounded-full -mb-32 -ml-32 blur-2xl opacity-20 z-0" />
+      <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.7, scale: 1 }} transition={{ duration: 0.8, delay: 1.3 }} className="fixed top-0 right-0 w-80 h-80 bg-gradient-to-l from-green-500 to-green-600 rounded-full -mt-40 -mr-40 blur-2xl opacity-20 z-0" />
 
       {showSuccess && <SuccessPopup message="Login successful" onClose={handlePopupClose} />}
     </div>
